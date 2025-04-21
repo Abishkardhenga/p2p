@@ -1,35 +1,49 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/auth/Login";
+import Signup from "./pages/auth/Signup";
+import Marketplace from "./pages/marketplace/Marketplace";
+import PromptDetail from "./pages/marketplace/PromptDetail";
+import SellPrompt from "./pages/marketplace/SellPrompt";
+import Dashboard from "./pages/dashboard/Dashboard";
+import { ZKLoginProvider } from "react-sui-zk-login-kit"
+import { SuiClient } from "@mysten/sui/client"
+import Test from "./pages/test"
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+const queryClient = new QueryClient()
+const FULLNODE_URL = "https://fullnode.devnet.sui.io/"
+const suiClient = new SuiClient({ url: FULLNODE_URL })
 
-export default App
+const App = () => (
+  <ZKLoginProvider client={suiClient}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/prompt/:id" element={<PromptDetail />} />
+            <Route path="/sell-prompt" element={<SellPrompt />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/*" element={<Dashboard />} />
+            <Route path="/test" element={<Test />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ZKLoginProvider>
+)
+
+export default App;
