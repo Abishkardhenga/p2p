@@ -1,9 +1,8 @@
-
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react"
+import { Link } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   ShoppingCart,
   MessageSquare,
@@ -24,18 +23,20 @@ import {
   Wallet,
   User,
   CreditCard,
-} from "lucide-react";
-import StatCard from "@/components/dashboard/stats/StatCard";
-import ActivityItem from "@/components/dashboard/ActivityItem";
-import { Progress } from "@/components/ui/progress";
-import { toast } from "@/components/ui/use-toast";
-import Footer from "@/components/layout/Footer";
-import Navbar from "@/components/layout/Navbar";
+} from "lucide-react"
+import StatCard from "@/components/dashboard/stats/StatCard"
+import ActivityItem from "@/components/dashboard/ActivityItem"
+import { Progress } from "@/components/ui/progress"
+import { toast } from "@/components/ui/use-toast"
+import Footer from "@/components/layout/Footer"
+import Navbar from "@/components/layout/Navbar"
 import { useZKLogin } from "react-sui-zk-login-kit"
+import { useCurrentAccount } from "@mysten/dapp-kit"
 
 const Dashboard = () => {
   const [tab, setTab] = useState("overview")
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
+  const account = useCurrentAccount()
 
   // Mock function for purchasing credits
   const handlePurchaseCredits = () => {
@@ -142,12 +143,23 @@ const Dashboard = () => {
                   <h2 className="text-xl font-bold text-white">John Doe</h2>
                   <span className="text-xs text-gray-400 bg-gray-800 rounded-full px-2 py-0.5 flex items-center">
                     <Wallet className="h-3 w-3 mr-1 text-neon-pink" />
-                    0x86f...a91e
+                    {address
+                      ? address.slice(0, 6) + "..." + address.slice(-4)
+                      : "Not Connected"}
                   </span>
                 </div>
                 <p className="text-gray-300">john@example.com</p>
                 <div className="flex items-center mt-1"></div>
-                <p>{address}</p>
+                {address && (
+                  <p className="text-xs text-green-500">
+                    ZK Address: {address}
+                  </p>
+                )}
+                {account && (
+                  <p className="text-xs text-blue-400">
+                    Wallet Address: {account.address}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -407,4 +419,4 @@ const Dashboard = () => {
   )
 }
 
-export default Dashboard;
+export default Dashboard

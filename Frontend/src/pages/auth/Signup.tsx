@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -16,6 +15,7 @@ import { useToast } from "@/components/ui/use-toast"
 import MainLayout from "@/components/layout/MainLayout"
 import { generateRandomness } from "@mysten/sui/zklogin"
 import { ZKLogin, useZKLogin } from "react-sui-zk-login-kit"
+import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit"
 
 const SUI_PROVER_ENDPOINT = "https://prover-dev.mystenlabs.com/v1"
 
@@ -103,6 +103,7 @@ const Signup = () => {
     }
   }, [encodedJwt])
 
+  const account = useCurrentAccount()
   console.log("encodedJwt", encodedJwt)
   console.log("userSalt", userSalt)
   console.log("address", address)
@@ -111,20 +112,26 @@ const Signup = () => {
     navigate("/dashboard")
   }
 
+  useEffect(() => {
+    if (account?.address) {
+      navigate("/dashboard")
+    }
+  }, [account?.address, navigate])
+
   return (
     <MainLayout>
       <div className="container max-w-md mx-auto py-16">
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
+            {/* <CardTitle className="text-2xl font-bold text-center">
               Sign Up
-            </CardTitle>
-            <CardDescription className="text-center">
+            </CardTitle> */}
+            {/* <CardDescription className="text-center">
               Create an account to start buying and selling prompts
-            </CardDescription>
+            </CardDescription> */}
           </CardHeader>
           <CardContent className="space-y-4">
-            <form onSubmit={handleSignup} className="space-y-4">
+            {/* <form onSubmit={handleSignup} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium">
                   Full Name
@@ -198,8 +205,8 @@ const Signup = () => {
               >
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
-            </form>
-            <div className="relative">
+            </form> */}
+            {/* <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
@@ -237,7 +244,7 @@ const Signup = () => {
                 />
               </svg>
               Google ZK Login
-            </Button>
+            </Button> */}
             <ZKLogin
               providers={providers}
               onSuccess={() => {
@@ -251,8 +258,42 @@ const Signup = () => {
               </div>
             )}
           </CardContent>
+
+          <CardContent className="space-y-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t"></span>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="px-2 text-white">Or connect with Sui</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center space-y-4">
+              <ConnectButton
+                connectText="Connect with Sui Wallet"
+                {...{
+                  className:
+                    "w-full bg-gradient-to-r from-[#6fbcf0] to-[#4a67e3] hover:opacity-90 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-300 flex items-center justify-center gap-2",
+                }}
+              />
+
+              <section className="text-sm mt-2 text-center">
+                {account?.address ? (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md text-green-700 font-medium break-all">
+                    Connected: {account?.address}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 italic">
+                    No wallet connected
+                  </div>
+                )}
+              </section>
+            </div>
+          </CardContent>
+
           <CardFooter className="flex justify-center">
-            <p className="text-sm text-gray-600">
+            {/* <p className="text-sm text-gray-600">
               Already have an account?{" "}
               <Link
                 to="/login"
@@ -260,7 +301,7 @@ const Signup = () => {
               >
                 Sign in
               </Link>
-            </p>
+            </p> */}
           </CardFooter>
         </Card>
       </div>
@@ -269,4 +310,3 @@ const Signup = () => {
 }
 
 export default Signup
-
