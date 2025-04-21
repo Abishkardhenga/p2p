@@ -1,0 +1,1 @@
+export const VITE_BASE_URL = "" //Backend URL set in .env file
