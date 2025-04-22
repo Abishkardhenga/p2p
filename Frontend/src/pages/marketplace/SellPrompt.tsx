@@ -1,19 +1,19 @@
-
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
-import MainLayout from "@/components/layout/MainLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { useToast } from "@/components/ui/use-toast"
+import MainLayout from "@/components/layout/MainLayout"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import axios from "axios"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 import {
   Card,
   CardContent,
@@ -21,150 +21,276 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
-import { Info, PlusCircle, Trash } from "lucide-react";
+} from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Slider } from "@/components/ui/slider"
+import { Info, PlusCircle, Trash } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/tooltip"
 
 const SellPrompt = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const navigate = useNavigate()
+  const { toast } = useToast()
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     longDescription: "",
     category: "",
+    subcategory: "", // Add this for subcategory selection
     model: "",
     price: 19.99,
+    testPrice: 1.99, // Add separate testPrice field
     systemPrompt: "",
-    sampleInputs: ["", ""],
-    sampleOutputs: ["", ""],
-  });
+    sampleInputs: [
+      "A minimal and surreal design with a color scheme of dreamy pastels and soft gradients; using woodcut and color processing printing techniques with surreal details; inspired by surrealism and dreamlike art; the focus is lovers; mood is surreal and introspective. --v 6.1",
+    ],
+    sampleOutputs: [""],
+    sampleImages: [
+      "https://assets.promptbase.com/DALLE_IMAGES%2FVAXItKojEQXmXUs4prJNIftWE6T2%2Fresized%2F1725762092286a_200x200.webp?alt=media&token=4791f95d-7942-4474-abcc-9068465e906f",
+    ],
+  })
 
+  const [showAIModel, setShowAiModel] = useState(false)
   const [modelSettings, setModelSettings] = useState({
     temperature: [0.7],
     maxTokens: [1500],
     topP: [0.9],
     frequencyPenalty: [0.5],
     presencePenalty: [0.5],
-  });
+  })
+  const [currentSuiPrice, setCurrentSuiPrice] = useState(0)
+  const [activeTab, setActiveTab] = useState("details")
 
-  const [activeTab, setActiveTab] = useState("details");
+  useEffect(() => {
+    const apiKey = "CG-JwZR5W5Wk65HhZTgD6cUejGt" // Removed trailing tab
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const fetchCoinPriceHistory = async (
+      coinId,
+      timeDeltaInSeconds = 360,
+      pricePrecision = 5
+    ) => {
+      const nowTimestamp = Math.floor(Date.now() / 1000)
+      const fromTimestamp = nowTimestamp - timeDeltaInSeconds
+
+      const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart/range`
+
+      try {
+        const { data } = await axios.get(url, {
+          params: {
+            vs_currency: "usd",
+            from: fromTimestamp,
+            to: nowTimestamp,
+            precision: pricePrecision,
+          },
+          headers: {
+            accept: "application/json",
+            "x-cg-demo-api-key": "CG-JwZR5W5Wk65HhZTgD6cUejGt",
+          },
+        })
+
+        console.log("response", data)
+        const latestprice = data.prices
+        console.log("latestprice", latestprice[0][1])
+
+        setCurrentSuiPrice(latestprice[0][1])
+        return data
+      } catch (error) {
+        console.error("Error fetching coin market data:", error)
+        return { prices: [], market_caps: [], total_volumes: [] }
+      }
+    }
+    fetchCoinPriceHistory("sui")
+  }, [])
+
+  useEffect(() => {
+    // Keep test price at 10% of main price or lower
+    const maxTestPrice = Math.min(formData.price * 0.1, 9.99)
+    if (formData.testPrice > maxTestPrice) {
+      setFormData((prev) => ({
+        ...prev,
+        testPrice: parseFloat(maxTestPrice.toFixed(2)),
+      }))
+    }
+  }, [formData.price, formData.testPrice])
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-    }));
-  };
+    }))
+  }
+
+  const models = [
+    {
+      id: 1,
+      name: "dall-e-3",
+    },
+    {
+      id: 2,
+      name: "dall-e-2",
+    },
+    {
+      id: 3,
+      name: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+    },
+    {
+      id: 4,
+      name: "Qwen/QwQ-32B",
+    },
+    {
+      id: 5,
+      name: "mistralai/Mistral-Nemo-Instruct-2407",
+    },
+  ]
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+    if (name === "category") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        subcategory: "", // Reset subcategory when category changes
+      }))
+      // Show AI model selection only if prompt is selected
+      setShowAiModel(value === "prompt")
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }))
+    }
+  }
 
-  const handleSampleChange = (index: number, field: "sampleInputs" | "sampleOutputs", value: string) => {
+  const handleSampleChange = (
+    index: number,
+    field: "sampleInputs" | "sampleOutputs",
+    value: string
+  ) => {
     setFormData((prev) => {
-      const updated = [...prev[field]];
-      updated[index] = value;
+      const updated = [...prev[field]]
+      updated[index] = value
       return {
         ...prev,
         [field]: updated,
-      };
-    });
-  };
+      }
+    })
+  }
+
+  const handleImageUpload = (index: number, imageUrl: string) => {
+    setFormData((prev) => {
+      const updatedImages = [...prev.sampleImages]
+      updatedImages[index] = imageUrl
+      return {
+        ...prev,
+        sampleImages: updatedImages,
+      }
+    })
+  }
 
   const addSample = () => {
     setFormData((prev) => ({
       ...prev,
       sampleInputs: [...prev.sampleInputs, ""],
       sampleOutputs: [...prev.sampleOutputs, ""],
-    }));
-  };
+      sampleImages: [...prev.sampleImages, ""],
+    }))
+  }
 
   const removeSample = (index: number) => {
     setFormData((prev) => {
-      const updatedInputs = [...prev.sampleInputs];
-      const updatedOutputs = [...prev.sampleOutputs];
-      
-      updatedInputs.splice(index, 1);
-      updatedOutputs.splice(index, 1);
-      
+      const updatedInputs = [...prev.sampleInputs]
+      const updatedOutputs = [...prev.sampleOutputs]
+      const updatedImages = [...prev.sampleImages]
+
+      updatedInputs.splice(index, 1)
+      updatedOutputs.splice(index, 1)
+      updatedImages.splice(index, 1)
+
       return {
         ...prev,
         sampleInputs: updatedInputs,
         sampleOutputs: updatedOutputs,
-      };
-    });
-  };
+        sampleImages: updatedImages,
+      }
+    })
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     // Validation
-    if (!formData.title || !formData.description || !formData.category || !formData.model || !formData.systemPrompt) {
+    if (
+      !formData.title ||
+      !formData.description ||
+      !formData.category ||
+      !formData.model ||
+      !formData.systemPrompt
+    ) {
       toast({
         title: "Missing required fields",
         description: "Please fill in all required fields before submitting.",
         variant: "destructive",
-      });
-      return;
+      })
+      return
     }
-    
+
     // Check sample inputs/outputs
     if (formData.sampleInputs[0] === "" || formData.sampleOutputs[0] === "") {
       toast({
         title: "Sample required",
         description: "Please provide at least one sample input and output.",
         variant: "destructive",
-      });
-      return;
+      })
+      return
     }
-    
+
     // Submit form - this would normally call an API
     toast({
       title: "Prompt Submitted",
       description: "Your prompt has been submitted for review.",
-    });
-    
+    })
+
     setTimeout(() => {
-      navigate("/dashboard/my-prompts");
-    }, 2000);
-  };
+      navigate("/dashboard/my-prompts")
+    }, 2000)
+  }
 
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="relative mb-12">
+        <div className="relative mb-12">
           <div className="absolute -top-6 -left-6 w-24 h-24 bg-neon-purple/20 rounded-full blur-xl animate-pulse"></div>
           <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-neon-blue/20 rounded-full blur-xl animate-pulse"></div>
-          
-          <h1 className="text-3xl font-bold text-foreground mb-2 relative z-10">Sell Your Prompt</h1>
+
+          <h1 className="text-3xl font-bold text-foreground mb-2 relative z-10">
+            Sell Your Prompt
+          </h1>
           <div className="h-1 w-20 bg-gradient-to-r from-neon-purple to-neon-blue mb-4"></div>
           <p className="text-muted-foreground max-w-3xl relative z-10">
-          Share your expertise with the community and earn by selling your AI prompts.
+            Share your expertise with the community and earn by selling your AI
+            prompts.
           </p>
         </div>
- 
 
         <form onSubmit={handleSubmit}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="details">Basic Details</TabsTrigger>
               <TabsTrigger value="content">Prompt Content</TabsTrigger>
               <TabsTrigger value="samples">Samples & Preview</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="details" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -185,10 +311,11 @@ const SellPrompt = () => {
                       required
                     />
                     <p className="text-xs text-gray-500">
-                      Choose a clear, descriptive title that explains what your prompt does.
+                      Choose a clear, descriptive title that explains what your
+                      prompt does.
                     </p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="description">Short Description</Label>
                     <Textarea
@@ -202,60 +329,89 @@ const SellPrompt = () => {
                       rows={2}
                     />
                     <p className="text-xs text-gray-500">
-                      This appears in search results and cards (100-150 characters recommended).
+                      This appears in search results and cards (100-150
+                      characters recommended).
                     </p>
                   </div>
-                  
-              
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="category">Category</Label>
                       <Select
                         value={formData.category}
-                        onValueChange={(value) => handleSelectChange("category", value)}
+                        onValueChange={(value) =>
+                          handleSelectChange("category", value)
+                        }
                       >
                         <SelectTrigger id="category">
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="copywriting">Copywriting</SelectItem>
-                          <SelectItem value="content">Content Creation</SelectItem>
-                          <SelectItem value="seo">SEO</SelectItem>
-                          <SelectItem value="marketing">Marketing</SelectItem>
-                          <SelectItem value="creative">Creative Writing</SelectItem>
-                          <SelectItem value="technical">Technical</SelectItem>
-                          <SelectItem value="chatgpt">ChatGPT</SelectItem>
-                          <SelectItem value="midjourney">Midjourney</SelectItem>
+                          <SelectItem value="prompt">Prompt </SelectItem>
+                          <SelectItem value="premium-content">
+                            Premium Content
+                          </SelectItem>
+                          <SelectItem value="dataset">Dataset</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="model">AI Model</Label>
-                      <Select
-                        value={formData.model}
-                        onValueChange={(value) => handleSelectChange("model", value)}
-                      >
-                        <SelectTrigger id="model">
-                          <SelectValue placeholder="Select a model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="GPT-4">GPT-4</SelectItem>
-                          <SelectItem value="GPT-3.5">GPT-3.5</SelectItem>
-                          <SelectItem value="Claude">Claude</SelectItem>
-                          <SelectItem value="Midjourney">Midjourney</SelectItem>
-                          <SelectItem value="DALL-E">DALL-E</SelectItem>
-                          <SelectItem value="Stable Diffusion">Stable Diffusion</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+
+                    {formData.category === "premium-content" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="subcategory">Content Type</Label>
+                        <Select
+                          value={formData.subcategory}
+                          onValueChange={(value) =>
+                            handleSelectChange("subcategory", value)
+                          }
+                        >
+                          <SelectTrigger id="subcategory">
+                            <SelectValue placeholder="Select content type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="books">Books</SelectItem>
+                            <SelectItem value="courses">Courses</SelectItem>
+                            <SelectItem value="templates">Templates</SelectItem>
+                            <SelectItem value="guides">
+                              Guides & Tutorials
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {formData.category === "prompt" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="model">AI Model</Label>
+                        <Select
+                          value={formData.model}
+                          onValueChange={(value) =>
+                            handleSelectChange("model", value)
+                          }
+                        >
+                          <SelectTrigger id="model">
+                            <SelectValue placeholder="Select a model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {models.map((item) => {
+                              return (
+                                <SelectItem value={item.name} key={item.id}>
+                                  {item.name}
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="price">Price (USD)</Label>
-                      <span className="text-lg font-medium">${formData.price.toFixed(2)}</span>
+                      <span className="text-lg font-medium">
+                        ${formData.price.toFixed(2)}
+                      </span>
                     </div>
                     <Slider
                       id="price"
@@ -263,40 +419,72 @@ const SellPrompt = () => {
                       max={99.99}
                       step={1}
                       value={[formData.price]}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, price: value[0] }))}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, price: value[0] }))
+                      }
                     />
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>$1.99</span>
                       <span>$99.99</span>
                     </div>
                     <p className="text-xs text-gray-500 pt-1">
-                      Set a competitive price based on the complexity and value of your prompt.
+                      Set a competitive price based on the complexity and value
+                      of your prompt.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="testPrice">Test Price (USD)</Label>
+                      <span className="text-lg font-medium">
+                        ${formData.testPrice.toFixed(2)}
+                      </span>
+                    </div>
+                    <Slider
+                      id="testPrice"
+                      min={0.99}
+                      max={Math.min(formData.price * 0.1, 9.99)} // Maximum 10% of main price or $9.99
+                      step={0.5}
+                      value={[formData.testPrice]}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          testPrice: value[0],
+                        }))
+                      }
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>$0.99</span>
+                      <span>
+                        ${Math.min(formData.price * 0.1, 9.99).toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 pt-1">
+                      Test price must be 10% or less than the original price ($
+                      {formData.price.toFixed(2)}).
                     </p>
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     type="button"
                     className=" px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
-
                     onClick={() => navigate(-1)}
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={() => setActiveTab("content")}
                     className="px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
-
                   >
                     Next
                   </Button>
                 </CardFooter>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="content" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -312,15 +500,20 @@ const SellPrompt = () => {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
                               <Info className="h-4 w-4" />
                               <span className="sr-only">Info</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
                             <p>
-                              This is the prompt that buyers will receive after purchase. 
-                              Make it detailed and comprehensive for best results.
+                              This is the prompt that buyers will receive after
+                              purchase. Make it detailed and comprehensive for
+                              best results and the prompt will be encrypted .
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -336,62 +529,116 @@ const SellPrompt = () => {
                       required
                     />
                     <p className="text-xs text-gray-500">
-                      This is the complete prompt that buyers will receive after purchase.
+                      This is the complete prompt that buyers will receive after
+                      purchase.
                     </p>
                   </div>
-                  
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Model Settings</h3>
+                      <Label htmlFor="systemPrompt">User Prompt</Label>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
                               <Info className="h-4 w-4" />
                               <span className="sr-only">Info</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
                             <p>
-                              Adjust these settings to optimize how the AI model processes your prompt.
-                              Different values produce different results.
+                              This is the user prompt . This part won't be
+                              encrypted
                             </p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    
+                    <Textarea
+                      id="systemPrompt"
+                      name="systemPrompt"
+                      placeholder="Enter your user  prompt here"
+                      value={formData.systemPrompt}
+                      onChange={handleInputChange}
+                      className="min-h-[200px] font-mono text-sm"
+                      required
+                    />
+                    {/* <p className="text-xs text-gray-500">
+                      This is the usr prompt that buyers will receive after
+                      purchase.
+                    </p> */}
+                  </div>
+                  {/* <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Model Settings</h3>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Info className="h-4 w-4" />
+                              <span className="sr-only">Info</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>
+                              Adjust these settings to optimize how the AI model
+                              processes your prompt. Different values produce
+                              different results.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <Label>Temperature: {modelSettings.temperature[0]}</Label>
+                            <Label>
+                              Temperature: {modelSettings.temperature[0]}
+                            </Label>
                           </div>
                           <Slider
                             min={0}
                             max={2}
                             step={0.1}
                             value={modelSettings.temperature}
-                            onValueChange={(value) => 
-                              setModelSettings(prev => ({ ...prev, temperature: value }))
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                temperature: value,
+                              }))
                             }
                           />
                           <p className="text-xs text-gray-500">
-                            Controls randomness: Lower is more focused, higher is more creative
+                            Controls randomness: Lower is more focused, higher
+                            is more creative
                           </p>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <Label>Max Tokens: {modelSettings.maxTokens[0]}</Label>
+                            <Label>
+                              Max Tokens: {modelSettings.maxTokens[0]}
+                            </Label>
                           </div>
                           <Slider
                             min={100}
                             max={4000}
                             step={100}
                             value={modelSettings.maxTokens}
-                            onValueChange={(value) => 
-                              setModelSettings(prev => ({ ...prev, maxTokens: value }))
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                maxTokens: value,
+                              }))
                             }
                           />
                           <p className="text-xs text-gray-500">
@@ -399,7 +646,7 @@ const SellPrompt = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
@@ -410,26 +657,35 @@ const SellPrompt = () => {
                             max={1}
                             step={0.05}
                             value={modelSettings.topP}
-                            onValueChange={(value) => 
-                              setModelSettings(prev => ({ ...prev, topP: value }))
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                topP: value,
+                              }))
                             }
                           />
                           <p className="text-xs text-gray-500">
                             Controls diversity via nucleus sampling
                           </p>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <Label>Frequency Penalty: {modelSettings.frequencyPenalty[0]}</Label>
+                            <Label>
+                              Frequency Penalty:{" "}
+                              {modelSettings.frequencyPenalty[0]}
+                            </Label>
                           </div>
                           <Slider
                             min={0}
                             max={2}
                             step={0.1}
                             value={modelSettings.frequencyPenalty}
-                            onValueChange={(value) => 
-                              setModelSettings(prev => ({ ...prev, frequencyPenalty: value }))
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                frequencyPenalty: value,
+                              }))
                             }
                           />
                           <p className="text-xs text-gray-500">
@@ -438,21 +694,20 @@ const SellPrompt = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     type="button"
                     className="px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
-
                     onClick={() => setActiveTab("details")}
                   >
                     Back
                   </Button>
-                  <Button 
-                  variant="outline"
-                    type="button" 
+                  <Button
+                    variant="outline"
+                    type="button"
                     onClick={() => setActiveTab("samples")}
                     className=" px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
                   >
@@ -461,7 +716,7 @@ const SellPrompt = () => {
                 </CardFooter>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="samples" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -472,8 +727,11 @@ const SellPrompt = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    {formData.sampleInputs.map((_, index) => (
-                      <div key={index} className="space-y-4 border rounded-lg p-4 relative">
+                    {formData.sampleInputs.map((input, index) => (
+                      <div
+                        key={index}
+                        className="space-y-4 border rounded-lg p-4 relative"
+                      >
                         <div className="absolute top-4 right-4">
                           {index > 0 && (
                             <Button
@@ -488,33 +746,185 @@ const SellPrompt = () => {
                             </Button>
                           )}
                         </div>
-                        
+
                         <div className="space-y-2">
-                          <Label htmlFor={`sampleInput-${index}`}>Sample Input {index + 1}</Label>
+                          <Label htmlFor={`sampleInput-${index}`}>
+                            Sample Input {index + 1}
+                          </Label>
                           <Textarea
                             id={`sampleInput-${index}`}
                             placeholder="Enter a sample input"
                             value={formData.sampleInputs[index]}
-                            onChange={(e) => handleSampleChange(index, "sampleInputs", e.target.value)}
+                            onChange={(e) =>
+                              handleSampleChange(
+                                index,
+                                "sampleInputs",
+                                e.target.value
+                              )
+                            }
                             className="resize-none"
                             rows={2}
                           />
                         </div>
-                        
+
                         <div className="space-y-2">
-                          <Label htmlFor={`sampleOutput-${index}`}>Sample Output {index + 1}</Label>
-                          <Textarea
-                            id={`sampleOutput-${index}`}
-                            placeholder="Provide the corresponding output"
-                            value={formData.sampleOutputs[index]}
-                            onChange={(e) => handleSampleChange(index, "sampleOutputs", e.target.value)}
-                            className="resize-none"
-                            rows={6}
-                          />
+                          <Label htmlFor={`sampleOutput-${index}`}>
+                            Sample Output {index + 1}
+                          </Label>
+                          <div className="space-y-4">
+                            {formData.category === "prompt" ? (
+                              <div className="space-y-3">
+                                {formData.sampleImages[index] ? (
+                                  // Display existing image with controls
+                                  <div className="relative group">
+                                    <img
+                                      src={formData.sampleImages[index]}
+                                      alt={`Sample ${index + 1}`}
+                                      className="rounded-md max-h-64 w-auto mx-auto border border-purple-300/30"
+                                      onError={(e) => {
+                                        // Fallback to placeholder on error
+                                        e.currentTarget.src =
+                                          "https://placehold.co/600x400/252232/e2e8f0?text=Sample+Image"
+                                      }}
+                                    />
+                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleImageUpload(index, "")
+                                        }
+                                      >
+                                        <Trash className="h-3 w-3 mr-1" />
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  // Show upload interface if no image exists
+                                  <div className="flex items-center justify-center border border-dashed border-purple-300/30 rounded-md p-8 bg-purple-500/5 hover:bg-purple-500/10 transition-colors">
+                                    <div className="text-center">
+                                      <label
+                                        htmlFor={`imageUpload-${index}`}
+                                        className="cursor-pointer"
+                                      >
+                                        <div className="flex flex-col items-center">
+                                          <PlusCircle className="h-8 w-8 text-purple-400 mb-2" />
+                                          <span className="text-sm font-medium text-gray-300">
+                                            {index === 0
+                                              ? "Add required sample image"
+                                              : "Add sample image"}
+                                          </span>
+                                          <span className="text-xs text-gray-500 mt-1">
+                                            PNG, JPG or WEBP (max 5MB)
+                                          </span>
+                                        </div>
+                                        <Input
+                                          id={`imageUpload-${index}`}
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            if (
+                                              e.target.files &&
+                                              e.target.files[0]
+                                            ) {
+                                              // Create a temporary URL for preview
+                                              const url = URL.createObjectURL(
+                                                e.target.files[0]
+                                              )
+                                              handleImageUpload(index, url)
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* URL input always available as an alternative */}
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="text"
+                                    placeholder="Or paste image URL"
+                                    value={formData.sampleImages[index] || ""}
+                                    onChange={(e) =>
+                                      handleImageUpload(index, e.target.value)
+                                    }
+                                    className="text-xs bg-background"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="whitespace-nowrap"
+                                    onClick={() => {
+                                      if (formData.sampleImages[index]) {
+                                        const img = new Image()
+                                        img.onload = () => {
+                                          toast({
+                                            title: "Image loaded successfully",
+                                            variant: "default",
+                                          })
+                                        }
+                                        img.onerror = () => {
+                                          toast({
+                                            title: "Invalid image URL",
+                                            description:
+                                              "Using a placeholder image instead",
+                                            variant: "destructive",
+                                          })
+                                          handleImageUpload(
+                                            index,
+                                            "https://placehold.co/600x400/252232/e2e8f0?text=Sample+Image"
+                                          )
+                                        }
+                                        img.src = formData.sampleImages[index]
+                                      }
+                                    }}
+                                  >
+                                    Test URL
+                                  </Button>
+                                </div>
+
+                                {/* Text description field */}
+                                <Textarea
+                                  placeholder="Describe what this image shows (optional)"
+                                  value={formData.sampleOutputs[index] || ""}
+                                  onChange={(e) =>
+                                    handleSampleChange(
+                                      index,
+                                      "sampleOutputs",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="resize-none text-sm"
+                                  rows={2}
+                                />
+                              </div>
+                            ) : (
+                              // For non-image prompts, show regular text area
+                              <Textarea
+                                id={`sampleOutput-${index}`}
+                                placeholder="Provide the corresponding output"
+                                value={formData.sampleOutputs[index]}
+                                onChange={(e) =>
+                                  handleSampleChange(
+                                    index,
+                                    "sampleOutputs",
+                                    e.target.value
+                                  )
+                                }
+                                className="resize-none"
+                                rows={6}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
-                    
+
                     {formData.sampleInputs.length < 5 && (
                       <Button
                         type="button"
@@ -527,36 +937,39 @@ const SellPrompt = () => {
                       </Button>
                     )}
                   </div>
-                  
+
                   <div>
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800">
                       <h4 className="font-medium mb-2">Important Notes</h4>
                       <ul className="list-disc pl-5 space-y-1 text-sm">
                         <li>
-                          Provide at least one high-quality example to help buyers understand what your prompt can do.
+                          Provide at least one high-quality example to help
+                          buyers understand what your prompt can do.
                         </li>
                         <li>
-                          The outputs will be verified by our blockchain verification system to ensure authenticity.
+                          The outputs will be verified by our Marketplace to
+                          ensure authenticity.
                         </li>
                         <li>
-                          Misleading samples may result in your prompt being removed from the marketplace.
+                          Misleading samples may result in your prompt being
+                          removed from the marketplace.
                         </li>
                       </ul>
                     </div>
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     type="button"
-                    className=" px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
-
+                    className="px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
                     onClick={() => setActiveTab("content")}
                   >
                     Back
                   </Button>
-                  <Button type="submit" 
-                  className=" bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-4 py-4 text-md text-white font-light group transition-all duration-300"
+                  <Button
+                    type="submit"
+                    className="bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-4 py-4 text-md text-white font-light group transition-all duration-300"
                   >
                     Submit Prompt
                   </Button>
@@ -567,7 +980,7 @@ const SellPrompt = () => {
         </form>
       </div>
     </MainLayout>
-  );
-};
+  )
+}
 
-export default SellPrompt;
+export default SellPrompt

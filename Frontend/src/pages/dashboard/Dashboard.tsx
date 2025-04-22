@@ -3,6 +3,8 @@ import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { MdContentCopy } from "react-icons/md"
+
 import {
   ShoppingCart,
   MessageSquare,
@@ -141,24 +143,52 @@ const Dashboard = () => {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-xl font-bold text-white">John Doe</h2>
-                  <span className="text-xs text-gray-400 bg-gray-800 rounded-full px-2 py-0.5 flex items-center">
+                  {/* <span className="text-xs text-gray-400 bg-gray-800 rounded-full px-2 py-0.5 flex items-center">
                     <Wallet className="h-3 w-3 mr-1 text-neon-pink" />
                     {address
                       ? address.slice(0, 6) + "..." + address.slice(-4)
                       : "Not Connected"}
-                  </span>
+                  </span> */}
                 </div>
-                <p className="text-gray-300">john@example.com</p>
+                {/* <p className="text-gray-300">john@example.com</p> */}
                 <div className="flex items-center mt-1"></div>
                 {address && (
-                  <p className="text-xs text-green-500">
-                    ZK Address: {address}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-green-500">
+                      ZK Address: {address}
+                    </p>
+                    <MdContentCopy
+                      className="text-white cursor-pointer hover:text-white transition-colors"
+                      onClick={() => {
+                        navigator.clipboard.writeText(address)
+                        toast({
+                          title: "Address Copied",
+                          description: "ZK Address copied to clipboard",
+                          variant: "default",
+                        })
+                      }}
+                      size={16}
+                    />
+                  </div>
                 )}
                 {account && (
-                  <p className="text-xs text-blue-400">
-                    Wallet Address: {account.address}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-blue-400">
+                      Wallet Address: {account.address}
+                    </p>
+                    <MdContentCopy
+                      className="text-blue-400 cursor-pointer hover:text-white transition-colors"
+                      onClick={() => {
+                        navigator.clipboard.writeText(account.address)
+                        toast({
+                          title: "Address Copied",
+                          description: "Wallet Address copied to clipboard",
+                          variant: "default",
+                        })
+                      }}
+                      size={16}
+                    />
+                  </div>
                 )}
               </div>
             </div>
