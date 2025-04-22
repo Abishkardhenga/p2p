@@ -34,11 +34,14 @@ import Footer from "@/components/layout/Footer"
 import Navbar from "@/components/layout/Navbar"
 import { useZKLogin } from "react-sui-zk-login-kit"
 import { useCurrentAccount } from "@mysten/dapp-kit"
+import { truncateAddress } from "@/lib/truncket"
 
 const Dashboard = () => {
   const [tab, setTab] = useState("overview")
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
   const account = useCurrentAccount()
+
+  console.log("truncate address", truncateAddress(address))
 
   // Mock function for purchasing credits
   const handlePurchaseCredits = () => {
@@ -155,7 +158,7 @@ const Dashboard = () => {
                 {address && (
                   <div className="flex items-center gap-1">
                     <p className="text-xs text-green-500">
-                      ZK Address: {address}
+                      ZK Address: {truncateAddress(address)}
                     </p>
                     <MdContentCopy
                       className="text-white cursor-pointer hover:text-white transition-colors"
@@ -174,7 +177,7 @@ const Dashboard = () => {
                 {account && (
                   <div className="flex items-center gap-1">
                     <p className="text-xs text-blue-400">
-                      Wallet Address: {account.address}
+                      Wallet Address: {truncateAddress(account.address)}
                     </p>
                     <MdContentCopy
                       className="text-blue-400 cursor-pointer hover:text-white transition-colors"
