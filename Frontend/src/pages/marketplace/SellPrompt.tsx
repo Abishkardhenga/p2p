@@ -31,6 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { submitPrompt, PromptFormData } from "@/services/PromptService";
 
 const SellPrompt = () => {
   const navigate = useNavigate()
@@ -222,8 +223,17 @@ const SellPrompt = () => {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await submitPrompt(formData as PromptFormData);
+      toast({ title: "Prompt Submitted", description: "Your prompt is now listed on chain." });
+      setTimeout(() => navigate("/dashboard/my-prompts"), 2000);
+      return;
+    } catch (err: any) {
+      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
+      return;
+    }
 
     // Validation
     if (

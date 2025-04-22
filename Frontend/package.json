@@ -13,6 +13,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@mysten/dapp-kit": "^0.15.6",
+    "@mysten/seal": "^0.3.8",
     "@mysten/sui.js": "^0.54.1",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
