@@ -65,6 +65,7 @@ const SellPrompt = () => {
   })
   const [currentSuiPrice, setCurrentSuiPrice] = useState(0)
   const [activeTab, setActiveTab] = useState("details")
+  const [imageSizes, setImageSizes] = useState<Record<number, string>>({})
 
   useEffect(() => {
     const apiKey = "CG-JwZR5W5Wk65HhZTgD6cUejGt" // Removed trailing tab
@@ -183,10 +184,50 @@ const SellPrompt = () => {
     })
   }
 
+  const getImageSize = async (url: string, index: number) => {
+    try {
+      const response = await fetch(url, { method: "HEAD" })
+      const contentLength = response.headers.get("Content-Length")
+      if (contentLength) {
+        const sizeInBytes = parseInt(contentLength, 10)
+        const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(2)
+        setImageSizes((prev) => ({
+          ...prev,
+          [index]: sizeInMB,
+        }))
+      }
+    } catch (error) {
+      console.error("Error getting image size:", error)
+      setImageSizes((prev) => ({
+        ...prev,
+        [index]: "Unknown",
+      }))
+    }
+  }
+
   const handleImageUpload = (index: number, imageUrl: string) => {
     setFormData((prev) => {
       const updatedImages = [...prev.sampleImages]
       updatedImages[index] = imageUrl
+
+      if (imageUrl) {
+        // Get file size for URLs
+        if (imageUrl.startsWith("http")) {
+          getImageSize(imageUrl, index)
+        }
+        // For file uploads, we already have the file object
+        else if (imageUrl.startsWith("blob:")) {
+          // Size will be shown when the file is selected
+        }
+      } else {
+        // Clear size info when image is removed
+        setImageSizes((prev) => {
+          const updated = { ...prev }
+          delete updated[index]
+          return updated
+        })
+      }
+
       return {
         ...prev,
         sampleImages: updatedImages,
@@ -409,8 +450,21 @@ const SellPrompt = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="price">Price (USD)</Label>
-                      <span className="text-lg font-medium">
-                        ${formData.price.toFixed(2)}
+                      <span className="flex items-center gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 px-3 py-1 rounded-full">
+                        <span className="text-lg font-semibold text-white">
+                          ${formData.price.toFixed(2)}
+                        </span>
+                        {currentSuiPrice > 0 && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-medium text-gray-400">
+                              ≈
+                            </span>
+                            <span className="text-xs font-medium text-blue-400">
+                              {(formData.price / currentSuiPrice).toFixed(2)}{" "}
+                              SUI
+                            </span>
+                          </div>
+                        )}
                       </span>
                     </div>
                     <Slider
@@ -435,8 +489,22 @@ const SellPrompt = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="testPrice">Test Price (USD)</Label>
-                      <span className="text-lg font-medium">
-                        ${formData.testPrice.toFixed(2)}
+
+                      <span className="flex items-center gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 px-3 py-1 rounded-full">
+                        <span className="text-lg font-semibold text-white">
+                          ${formData.testPrice.toFixed(2)}
+                        </span>
+                        {currentSuiPrice > 0 && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-medium text-gray-400">
+                              ≈
+                            </span>
+                            <span className="text-xs font-medium text-blue-400">
+                              {(formData.price / currentSuiPrice).toFixed(2)}{" "}
+                              SUI
+                            </span>
+                          </div>
+                        )}
                       </span>
                     </div>
                     <Slider
@@ -781,12 +849,45 @@ const SellPrompt = () => {
                                       src={formData.sampleImages[index]}
                                       alt={`Sample ${index + 1}`}
                                       className="rounded-md max-h-64 w-auto mx-auto border border-purple-300/30"
+                                      onLoad={(e) => {
+                                        // For blob URLs or local files, we can get size from the image element
+                                        if (
+                                          formData.sampleImages[
+                                            index
+                                          ].startsWith("blob:") &&
+                                          !imageSizes[index]
+                                        ) {
+                                          const img =
+                                            e.target as HTMLImageElement
+                                          // Estimate file size based on dimensions and bit depth
+                                          // This is a rough estimate
+                                          const estimatedSize = (
+                                            (img.naturalWidth *
+                                              img.naturalHeight *
+                                              4) /
+                                            (1024 * 1024)
+                                          ).toFixed(2)
+                                          setImageSizes((prev) => ({
+                                            ...prev,
+                                            [index]: estimatedSize,
+                                          }))
+                                        }
+                                      }}
                                       onError={(e) => {
                                         // Fallback to placeholder on error
                                         e.currentTarget.src =
                                           "https://placehold.co/600x400/252232/e2e8f0?text=Sample+Image"
+                                        setImageSizes((prev) => ({
+                                          ...prev,
+                                          [index]: "N/A",
+                                        }))
                                       }}
                                     />
+                                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs py-1 px-2 rounded">
+                                      {imageSizes[index]
+                                        ? `${imageSizes[index]} MB`
+                                        : "Calculating size..."}
+                                    </div>
                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Button
                                         type="button"
@@ -834,6 +935,17 @@ const SellPrompt = () => {
                                               const url = URL.createObjectURL(
                                                 e.target.files[0]
                                               )
+
+                                              // Get file size in MB
+                                              const fileSizeMB = (
+                                                e.target.files[0].size /
+                                                (1024 * 1024)
+                                              ).toFixed(2)
+                                              setImageSizes((prev) => ({
+                                                ...prev,
+                                                [index]: fileSizeMB,
+                                              }))
+
                                               handleImageUpload(index, url)
                                             }
                                           }}
