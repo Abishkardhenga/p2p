@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import {
   Search,
@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   LogOut,
 } from "lucide-react"
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,23 +22,54 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useZKLogin } from "react-sui-zk-login-kit"
-import { useCurrentAccount } from "@mysten/dapp-kit"
+import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit"
+import { toast } from "@/hooks/use-toast"
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
   const [isLoggedIn, setIsLoggedIn] = useState(false) // In reality, this would come from auth state
 
+  const { mutate: disconnectSuiWallet } = useDisconnectWallet()
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
   const account = useCurrentAccount()
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
   }
 
+  const navigate = useNavigate()
+
   const isActive = (path: string) => {
     return location.pathname === path
   }
 
+  const disconnectFunc = () => {
+    // Handle ZK Login logout
+    if (address) {
+      logout()
+      setUserSalt("")
+      navigate("/")
+    }
+
+    // Handle SUI wallet disconnection
+    if (account) {
+      disconnectSuiWallet()
+      navigate("/")
+    }
+
+    // Clear any local storage items related to authentication if needed
+    localStorage.removeItem("walletType") // Optional: if you're tracking the login method
+
+    // Show toast notification
+    toast({
+      title: "Disconnected",
+      description: "You have been logged out successfully.",
+      variant: "default",
+    })
+
+    // Optional: redirect to home page or login page
+    // navigate('/');
+  }
   return (
     <nav className="bg-background/80 backdrop-blur-md shadow-md border-b border-neon-purple/20 sticky top-0 z-50 w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,7 +79,7 @@ const Navbar = () => {
               <div className="inline-flex items-center px-2 py-1">
                 <span className="text-3xl tracking-wide font-semibold tracking-tight">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500">
-                    Prompt Sui
+                    Crystal Prompts
                   </span>
                 </span>
               </div>
@@ -91,7 +123,7 @@ const Navbar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-neon-purple/20" />
                   <DropdownMenuItem
-                    onClick={() => setIsLoggedIn(false)}
+                    onClick={() => disconnectFunc()}
                     className="text-gray-300 hover:text-white focus:text-white hover:bg-neon-purple/10 focus:bg-neon-purple/10"
                   >
                     Logout
@@ -166,8 +198,7 @@ const Navbar = () => {
                       <DropdownMenuSeparator className="bg-neon-purple/20" />
                       <DropdownMenuItem
                         onClick={() => {
-                          logout && logout()
-                          setIsLoggedIn(false)
+                          disconnectFunc()
                         }}
                         className="text-red-400 hover:text-red-300 focus:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10"
                       >

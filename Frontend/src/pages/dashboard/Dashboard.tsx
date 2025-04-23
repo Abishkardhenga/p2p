@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MdContentCopy } from "react-icons/md"
 import { truncateAddress } from "@/utils/formatAddress"
+import { useDisconnectWallet } from "@mysten/dapp-kit"
 
 import {
   ShoppingCart,
@@ -40,7 +41,8 @@ const Dashboard = () => {
   const [tab, setTab] = useState("overview")
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
   const account = useCurrentAccount()
-
+  const { mutate: disconnectSuiWallet } = useDisconnectWallet()
+  const navigate = useNavigate()
   // Mock function for purchasing credits
   const handlePurchaseCredits = () => {
     toast({
@@ -59,6 +61,33 @@ const Dashboard = () => {
     }, 2000)
   }
 
+  const disconnectFun = () => {
+    // Handle ZK Login logout
+    if (address) {
+      logout()
+      setUserSalt("")
+      navigate("/")
+    }
+
+    // Handle SUI wallet disconnection
+    if (account) {
+      disconnectSuiWallet()
+      navigate("/")
+    }
+
+    // Clear any local storage items related to authentication if needed
+    localStorage.removeItem("walletType") // Optional: if you're tracking the login method
+
+    // Show toast notification
+    toast({
+      title: "Disconnected",
+      description: "You have been logged out successfully.",
+      variant: "default",
+    })
+
+    // Optional: redirect to home page or login page
+    // navigate('/');
+  }
   // Mock data for purchased prompts
   const purchasedPrompts = [
     {
@@ -210,9 +239,14 @@ const Dashboard = () => {
                 className="text-gray-300 hover:text-white hover:bg-red-900/30"
                 asChild
               >
-                <Link to="/login">
+                <Link
+                  onClick={() => {
+                    disconnectFun()
+                  }}
+                  to="/"
+                >
                   <LogOut className="h-4 w-4 mr-2" />
-                  Logout
+                  Disconnect
                 </Link>
               </Button>
             </div>

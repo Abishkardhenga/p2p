@@ -86,11 +86,20 @@ const SellPrompt = () => {
 
   const [showAIModel, setShowAiModel] = useState(false)
   const [modelSettings, setModelSettings] = useState({
+    // Text prompt settings
     temperature: [0.7],
-    maxTokens: [1500],
-    topP: [0.9],
+    maxTokens: [1024],
+    topP: [1],
     frequencyPenalty: [0.5],
     presencePenalty: [0.5],
+
+    // Image-specific settings
+    imageQuality: ["standard"],
+    imageSize: ["1024x1024"], // Added image size option
+    style: ["vivid"],
+    aspectRatio: ["1:1"],
+    numImages: [1],
+    detailLevel: ["standard"], // Added detail level option
   })
   const [currentSuiPrice, setCurrentSuiPrice] = useState(0)
   const [activeTab, setActiveTab] = useState("details")
@@ -276,6 +285,23 @@ const SellPrompt = () => {
     }))
   }
 
+  // Add these validation functions
+  const isDetailsTabValid = () => {
+    return (
+      formData.title.trim() !== "" &&
+      formData.description.trim() !== "" &&
+      formData.category !== "" &&
+      formData.model !== "" &&
+      formData.price >= 1.99
+    )
+  }
+
+  const isContentTabValid = () => {
+    return (
+      formData.systemPrompt.trim() !== "" && formData.userPrompt.trim() !== ""
+    )
+  }
+
   const removeSample = (index: number) => {
     setFormData((prev) => {
       const updatedInputs = [...prev.sampleInputs]
@@ -385,7 +411,9 @@ const SellPrompt = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title" className="flex items-center">
+                      Title <span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <Input
                       id="title"
                       name="title"
@@ -401,7 +429,10 @@ const SellPrompt = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Short Description</Label>
+                    <Label htmlFor="description" className="flex items-center">
+                      Short Description{" "}
+                      <span className="text-red-500 ml-1">*</span>
+                    </Label>
                     <Textarea
                       id="description"
                       name="description"
@@ -420,45 +451,76 @@ const SellPrompt = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="category">Category</Label>
+                      <Label htmlFor="category" className="flex items-center">
+                        Category <span className="text-red-500 ml-1">*</span>
+                      </Label>
                       <Select
                         value={formData.category}
                         onValueChange={(value) =>
                           handleSelectChange("category", value)
                         }
                       >
-                        <SelectTrigger id="category">
+                        <SelectTrigger id="category" className="w-full">
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Text-Prompt">
+                        <SelectContent className="bg-background border-purple-500/30">
+                          <SelectItem
+                            className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                            value="Text-Prompt"
+                          >
                             Text-Prompt
                           </SelectItem>
-                          <SelectItem value="Image-Prompt">
+                          <SelectItem
+                            className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                            value="Image-Prompt"
+                          >
                             Image-Prompt
                           </SelectItem>
-                          {/* <SelectItem value="dataset">Dataset</SelectItem> */}
                         </SelectContent>
                       </Select>
                     </div>
 
                     {formData.category === "premium-content" && (
                       <div className="space-y-2">
-                        <Label htmlFor="subcategory">Content Type</Label>
+                        <Label
+                          htmlFor="subcategory"
+                          className="flex items-center"
+                        >
+                          Content Type{" "}
+                          <span className="text-red-500 ml-1">*</span>
+                        </Label>
                         <Select
                           value={formData.subcategory}
                           onValueChange={(value) =>
                             handleSelectChange("subcategory", value)
                           }
                         >
-                          <SelectTrigger id="subcategory">
+                          <SelectTrigger id="subcategory" className="w-full">
                             <SelectValue placeholder="Select content type" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="books">Books</SelectItem>
-                            <SelectItem value="courses">Courses</SelectItem>
-                            <SelectItem value="templates">Templates</SelectItem>
-                            <SelectItem value="guides">
+                          <SelectContent className="bg-background border-purple-500/30">
+                            <SelectItem
+                              className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                              value="books"
+                            >
+                              Books
+                            </SelectItem>
+                            <SelectItem
+                              className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                              value="courses"
+                            >
+                              Courses
+                            </SelectItem>
+                            <SelectItem
+                              className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                              value="templates"
+                            >
+                              Templates
+                            </SelectItem>
+                            <SelectItem
+                              className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                              value="guides"
+                            >
                               Guides & Tutorials
                             </SelectItem>
                           </SelectContent>
@@ -468,54 +530,59 @@ const SellPrompt = () => {
 
                     {formData.category === "Image-Prompt" && (
                       <div className="space-y-2">
-                        <Label htmlFor="model">Image Model</Label>
+                        <Label htmlFor="model" className="flex items-center">
+                          Image Model{" "}
+                          <span className="text-red-500 ml-1">*</span>
+                        </Label>
                         <Select
                           value={formData.model}
                           onValueChange={(value) =>
                             handleSelectChange("model", value)
                           }
                         >
-                          <SelectTrigger id="model">
-                            <SelectValue
-                              className="text-white"
-                              placeholder="Select a model"
-                            />
+                          <SelectTrigger id="model" className="w-full">
+                            <SelectValue placeholder="Select a model" />
                           </SelectTrigger>
-                          <SelectContent>
-                            {models.map((item) => {
-                              return (
-                                <SelectItem value={item.name} key={item.id}>
-                                  {item.name}
-                                </SelectItem>
-                              )
-                            })}
+                          <SelectContent className="bg-background border-purple-500/30">
+                            {models.map((item) => (
+                              <SelectItem
+                                key={item.id}
+                                value={item.name}
+                                className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                              >
+                                {item.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
                     )}
+
                     {formData.category === "Text-Prompt" && (
                       <div className="space-y-2">
-                        <Label htmlFor="model">Text Model</Label>
+                        <Label htmlFor="model" className="flex items-center">
+                          Text Model{" "}
+                          <span className="text-red-500 ml-1">*</span>
+                        </Label>
                         <Select
                           value={formData.model}
                           onValueChange={(value) =>
                             handleSelectChange("model", value)
                           }
                         >
-                          <SelectTrigger id="model">
-                            <SelectValue
-                              className="text-white"
-                              placeholder="Select a model"
-                            />
+                          <SelectTrigger id="model" className="w-full">
+                            <SelectValue placeholder="Select a model" />
                           </SelectTrigger>
-                          <SelectContent>
-                            {textmodels.map((item) => {
-                              return (
-                                <SelectItem value={item.name} key={item.id}>
-                                  {item.name}
-                                </SelectItem>
-                              )
-                            })}
+                          <SelectContent className="bg-background border-purple-500/30">
+                            {textmodels.map((item) => (
+                              <SelectItem
+                                key={item.id}
+                                value={item.name}
+                                className="hover:bg-purple-500/20 hover:text-purple-300 focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer transition-colors"
+                              >
+                                {item.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -587,12 +654,6 @@ const SellPrompt = () => {
                     <Slider
                       id="testPrice"
                       min={0.99}
-                      max={Math.min(formData.price * 0.1, 9.99)} // Maximum 10% of main price or $9.99
-                      step={0.5}
-                      value={[formData.testPrice]}
-                      onValueChange={(value) =>
-                        setFormData((prev) => ({
-                          ...prev,
                           testPrice: value[0],
                         }))
                       }
@@ -608,6 +669,11 @@ const SellPrompt = () => {
                       {formData.price.toFixed(2)}).
                     </p>
                   </div> */}
+                  {!isDetailsTabValid() && (
+                    <p className="text-xs text-red-400 mt-2">
+                      Please fill out all required fields before proceeding.
+                    </p>
+                  )}
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button
@@ -622,7 +688,12 @@ const SellPrompt = () => {
                     type="button"
                     variant="outline"
                     onClick={() => setActiveTab("content")}
-                    className="px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
+                    disabled={!isDetailsTabValid()}
+                    className={`px-8 py-6 text-lg border-purple-500 ${
+                      isDetailsTabValid()
+                        ? "text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+                        : "text-gray-500 cursor-not-allowed opacity-50"
+                    } transition-all duration-300`}
                   >
                     Next
                   </Button>
@@ -656,9 +727,10 @@ const SellPrompt = () => {
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
                             <p>
-                              This is the prompt that buyers will receive after
-                              purchase. Make it detailed and comprehensive for
-                              best results and the prompt will be encrypted.
+                              This is the main prompt that contains your
+                              proprietary instructions. It will be encrypted and
+                              only revealed to buyers after purchase. Make it
+                              detailed and comprehensive for best results.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -696,8 +768,10 @@ const SellPrompt = () => {
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
                             <p>
-                              This is the user prompt. This part won't be
-                              encrypted.
+                              This is the visible portion users can customize.
+                              It won't be encrypted and will be publicly visible
+                              on the marketplace. Include sample variables or
+                              placeholders that work with your system prompt.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -717,6 +791,349 @@ const SellPrompt = () => {
                     </p>
                   </div>
                 </CardContent>
+
+                <CardContent className="space-y-6">
+                  {/* Your system prompt and user prompt fields */}
+
+                  {/* Model Settings section - Improved visual design and conditional display */}
+                  <div className="mt-8 pt-6 border-t border-purple-500/20">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
+                        Model Settings
+                      </h3>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Info className="h-4 w-4" />
+                              <span className="sr-only">Info</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>
+                              Adjust these settings to optimize how the AI model
+                              processes your prompt. Different values produce
+                              different results.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+
+                    {/* Conditional rendering based on prompt type */}
+                    {formData.category === "Text-Prompt" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Temperature Setting */}
+                        <div className="space-y-3 bg-purple-500/5 p-4 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                                <span className="text-purple-400 text-sm font-semibold">
+                                  T
+                                </span>
+                              </div>
+                              <Label className="font-medium">Temperature</Label>
+                            </div>
+                            <span className="text-lg font-mono text-purple-400">
+                              {modelSettings.temperature[0].toFixed(1)}
+                            </span>
+                          </div>
+                          <Slider
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={modelSettings.temperature}
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                temperature: value,
+                              }))
+                            }
+                            className="py-2"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>0 (Focused)</span>
+                            <span>2 (Creative)</span>
+                          </div>
+                        </div>
+
+                        {/* Max Tokens Setting */}
+                        <div className="space-y-3 bg-blue-500/5 p-4 rounded-lg border border-blue-500/10 hover:border-blue-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                <span className="text-blue-400 text-sm font-semibold">
+                                  M
+                                </span>
+                              </div>
+                              <Label className="font-medium">Max Tokens</Label>
+                            </div>
+                            <span className="text-lg font-mono text-blue-400">
+                              {modelSettings.maxTokens[0]}
+                            </span>
+                          </div>
+                          <Slider
+                            min={100}
+                            max={4000}
+                            step={100}
+                            value={modelSettings.maxTokens}
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                maxTokens: value,
+                              }))
+                            }
+                            className="py-2"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>100 (Short)</span>
+                            <span>4000 (Long)</span>
+                          </div>
+                        </div>
+
+                        {/* Top P Setting */}
+                        <div className="space-y-3 bg-pink-500/5 p-4 rounded-lg border border-pink-500/10 hover:border-pink-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-pink-500/10 flex items-center justify-center">
+                                <span className="text-pink-400 text-sm font-semibold">
+                                  P
+                                </span>
+                              </div>
+                              <Label className="font-medium">Top P</Label>
+                            </div>
+                            <span className="text-lg font-mono text-pink-400">
+                              {modelSettings.topP[0].toFixed(2)}
+                            </span>
+                          </div>
+                          <Slider
+                            min={0.1}
+                            max={1}
+                            step={0.05}
+                            value={modelSettings.topP}
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                topP: value,
+                              }))
+                            }
+                            className="py-2"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>0.1 (Precise)</span>
+                            <span>1.0 (Diverse)</span>
+                          </div>
+                        </div>
+
+                        {/* Frequency Penalty Setting */}
+                        <div className="space-y-3 bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                                <span className="text-emerald-400 text-sm font-semibold">
+                                  F
+                                </span>
+                              </div>
+                              <Label className="font-medium">
+                                Frequency Penalty
+                              </Label>
+                            </div>
+                            <span className="text-lg font-mono text-emerald-400">
+                              {modelSettings.frequencyPenalty[0].toFixed(1)}
+                            </span>
+                          </div>
+                          <Slider
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={modelSettings.frequencyPenalty}
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                frequencyPenalty: value,
+                              }))
+                            }
+                            className="py-2"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>0 (Allow repeats)</span>
+                            <span>2 (No repeats)</span>
+                          </div>
+                        </div>
+
+                        {/* Presence Penalty Setting */}
+                        <div className="space-y-3 bg-violet-500/5 p-4 rounded-lg border border-violet-500/10 hover:border-violet-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center">
+                                <span className="text-violet-400 text-sm font-semibold">
+                                  P
+                                </span>
+                              </div>
+                              <Label className="font-medium">
+                                Presence Penalty
+                              </Label>
+                            </div>
+                            <span className="text-lg font-mono text-violet-400">
+                              {modelSettings.presencePenalty[0].toFixed(1)}
+                            </span>
+                          </div>
+                          <Slider
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={modelSettings.presencePenalty}
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                presencePenalty: value,
+                              }))
+                            }
+                            className="py-2"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>0 (Allow topics)</span>
+                            <span>2 (New topics)</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.category === "Image-Prompt" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Image Size Setting */}
+                        <div className="space-y-3 bg-indigo-500/5 p-4 rounded-lg border border-indigo-500/10 hover:border-indigo-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                                <span className="text-indigo-400 text-sm font-semibold">
+                                  S
+                                </span>
+                              </div>
+                              <Label className="font-medium">Image Size</Label>
+                            </div>
+                            <span className="text-lg font-mono text-indigo-400">
+                              {modelSettings.imageSize?.[0] || "1024x1024"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 py-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={`${
+                                (modelSettings.imageSize?.[0] ||
+                                  "1024x1024") === "1024x1024"
+                                  ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                                  : "bg-transparent border-indigo-500/30 text-gray-400"
+                              } hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors text-xs`}
+                              onClick={() =>
+                                setModelSettings((prev) => ({
+                                  ...prev,
+                                  imageSize: ["1024x1024"],
+                                }))
+                              }
+                            >
+                              1024×1024
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={`${
+                                (modelSettings.imageSize?.[0] || "") ===
+                                "512x512"
+                                  ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                                  : "bg-transparent border-indigo-500/30 text-gray-400"
+                              } hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors text-xs`}
+                              onClick={() =>
+                                setModelSettings((prev) => ({
+                                  ...prev,
+                                  imageSize: ["512x512"],
+                                }))
+                              }
+                            >
+                              512×512
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={`${
+                                (modelSettings.imageSize?.[0] || "") ===
+                                "256x256"
+                                  ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                                  : "bg-transparent border-indigo-500/30 text-gray-400"
+                              } hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors text-xs`}
+                              onClick={() =>
+                                setModelSettings((prev) => ({
+                                  ...prev,
+                                  imageSize: ["256x256"],
+                                }))
+                              }
+                            >
+                              256×256
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Larger sizes generate more detailed images but use
+                            more tokens.
+                          </p>
+                        </div>
+
+                        {/* Number of Images Setting */}
+                        <div className="space-y-3 bg-violet-500/5 p-4 rounded-lg border border-violet-500/10 hover:border-violet-500/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center">
+                                <span className="text-violet-400 text-sm font-semibold">
+                                  #
+                                </span>
+                              </div>
+                              <Label className="font-medium">
+                                Number of Images
+                              </Label>
+                            </div>
+                            <span className="text-lg font-mono text-violet-400">
+                              {modelSettings.numImages?.[0] || 1}
+                            </span>
+                          </div>
+                          <Slider
+                            min={1}
+                            max={4}
+                            step={1}
+                            value={modelSettings.numImages || [1]}
+                            onValueChange={(value) =>
+                              setModelSettings((prev) => ({
+                                ...prev,
+                                numImages: value,
+                              }))
+                            }
+                            className="py-2"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>1</span>
+                            <span>4</span>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Generate multiple variations from a single prompt.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show this when no category is selected */}
+                    {!formData.category && (
+                      <div className="flex items-center justify-center h-32 bg-purple-500/5 rounded-lg border border-dashed border-purple-500/20">
+                        <p className="text-gray-400">
+                          Select a category to see applicable model settings
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+
                 <CardFooter className="flex justify-between">
                   <Button
                     variant="outline"
@@ -730,7 +1147,12 @@ const SellPrompt = () => {
                     variant="outline"
                     type="button"
                     onClick={() => setActiveTab("samples")}
-                    className=" px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
+                    disabled={!isContentTabValid()}
+                    className={`px-8 py-6 text-lg border-purple-500 ${
+                      isContentTabValid()
+                        ? "text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+                        : "text-gray-500 cursor-not-allowed opacity-50"
+                    } transition-all duration-300`}
                   >
                     Next
                   </Button>
@@ -793,43 +1215,46 @@ const SellPrompt = () => {
                             Sample Output {index + 1}
                           </Label>
                           <div className="space-y-4">
-                            {formData.category === "prompt" ? (
+                            {formData.category === "Image-Prompt" ? (
                               <div className="space-y-3">
                                 {formData.sampleImages[index] ? (
-                                  // Display existing image with controls
+                                  // Fix for the image handling section
                                   <div className="relative group">
                                     <img
                                       src={formData.sampleImages[index]}
                                       alt={`Sample ${index + 1}`}
                                       className="rounded-md max-h-64 w-auto mx-auto border border-purple-300/30"
                                       onLoad={(e) => {
-                                        // For blob URLs or local files, we can get size from the image element
+                                        // For blob URLs or local files, we can estimate size
                                         if (
                                           formData.sampleImages[
                                             index
-                                          ].startsWith("blob:") &&
+                                          ]?.startsWith("blob:") &&
                                           !imageSizes[index]
                                         ) {
                                           const img =
                                             e.target as HTMLImageElement
-                                          // Estimate file size based on dimensions and bit depth
-                                          // This is a rough estimate
+                                          // Safer calculation with null checks
+                                          const width = img.naturalWidth || 0
+                                          const height = img.naturalHeight || 0
                                           const estimatedSize = (
-                                            (img.naturalWidth *
-                                              img.naturalHeight *
-                                              4) /
+                                            (width * height * 4) /
                                             (1024 * 1024)
                                           ).toFixed(2)
                                           setImageSizes((prev) => ({
                                             ...prev,
-                                            [index]: estimatedSize,
+                                            [index]: estimatedSize || "0.00",
                                           }))
                                         }
                                       }}
                                       onError={(e) => {
                                         // Fallback to placeholder on error
-                                        e.currentTarget.src =
-                                          "https://placehold.co/600x400/252232/e2e8f0?text=Sample+Image"
+                                        const target = e.currentTarget
+                                        if (target) {
+                                          target.src =
+                                            "https://placehold.co/600x400/252232/e2e8f0?text=Sample+Image"
+                                          target.onerror = null // Prevent infinite error loop
+                                        }
                                         setImageSizes((prev) => ({
                                           ...prev,
                                           [index]: "N/A",
@@ -965,7 +1390,6 @@ const SellPrompt = () => {
                                     )
                                   }
                                   className="resize-none text-sm"
-                                  rows={2}
                                 /> */}
                               </div>
                             ) : (
@@ -1028,15 +1452,22 @@ const SellPrompt = () => {
                     variant="outline"
                     type="button"
                     className="px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
-                    onClick={() => setActiveTab("content")}
+                    onClick={() => setActiveTab("details")}
                   >
                     Back
                   </Button>
                   <Button
-                    type="submit"
-                    className="bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-4 py-4 text-md text-white font-light group transition-all duration-300"
+                    variant="outline"
+                    type="button"
+                    onClick={() => setActiveTab("samples")}
+                    disabled={!isContentTabValid()}
+                    className={`px-8 py-6 text-lg border-purple-500 ${
+                      isContentTabValid()
+                        ? "text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+                        : "text-gray-500 cursor-not-allowed opacity-50"
+                    } transition-all duration-300`}
                   >
-                    Submit Prompt
+                    Next
                   </Button>
                 </CardFooter>
               </Card>

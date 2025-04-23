@@ -19,6 +19,7 @@ import { SuiClient } from "@mysten/sui/client"
 import { getFullnodeUrl } from "@mysten/sui.js/client"
 
 import Test from "./pages/test"
+import Contact from "./pages/contact"
 
 const queryClient = new QueryClient()
 const suiClient = new SuiClient({ url: getFullnodeUrl("testnet") })
@@ -41,7 +42,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
+                {/* <Route path="/login" element={<Login />} /> */}
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/marketplace" element={<Marketplace />} />
                 <Route path="/prompt/:id" element={<PromptDetail />} />
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/*" element={<Dashboard />} />
                 <Route path="/test" element={<Test />} />
+                <Route path="/contact" element={<Contact />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

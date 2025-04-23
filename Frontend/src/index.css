@@ -3,6 +3,14 @@
 @tailwind components;
 @tailwind utilities;
 
+
+
+
+*{
+    font-family: 'Varela Round', sans-serif;
+
+}
+
 @layer base {
   :root {
     --background: 240 10% 3.9%;
