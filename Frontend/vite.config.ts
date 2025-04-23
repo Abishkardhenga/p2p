@@ -9,14 +9,20 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 5173,
     proxy: {
-      // Proxy Walrus publisher and aggregator to local backend
-      '/publisher1': {
-        target: 'http://localhost:3001',
+      // Proxy Walrus publisher and aggregator to local backend, stripping prefix
+      // Proxy to Walrus testnet publisher
+      '/publisher1/v1': {
+        target: 'https://publisher.walrus-testnet.walrus.space',
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/publisher1/, ''),
       },
-      '/aggregator1': {
-        target: 'http://localhost:3001',
+      // Proxy to Walrus testnet aggregator
+      '/aggregator1/v1': {
+        target: 'https://aggregator.walrus-testnet.walrus.space',
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/aggregator1/, ''),
       },
     },
   },
