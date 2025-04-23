@@ -1,0 +1,8 @@
+WHITELIST_URL=*
+
+OPENAI_API_KEY= <OPENAI_API_KEY>
+ATOMA_BEARER=<ATOMA-BEARER>
+
+# default is in memory data store
+USE_SQLITE=True
+SQLITE_DB_PATH=prompt_market.db
