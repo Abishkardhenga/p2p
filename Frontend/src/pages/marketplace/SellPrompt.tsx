@@ -32,10 +32,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { submitPrompt, PromptFormData } from "@/services/PromptService";
+import { useSuiClient } from "@mysten/dapp-kit";
+import { useNetworkVariable } from "@/configs/networkConfig";
 
 const SellPrompt = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  // Initialize Sui client and package ID for blockchain calls
+  const suiClient = useSuiClient()
+  const packageId = useNetworkVariable('packageId')
 
   const [formData, setFormData] = useState({
     title: "",
@@ -267,7 +273,7 @@ const SellPrompt = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await submitPrompt(formData as PromptFormData);
+      await submitPrompt(formData as PromptFormData, suiClient, packageId);
       toast({ title: "Prompt Submitted", description: "Your prompt is now listed on chain." });
       setTimeout(() => navigate("/dashboard/my-prompts"), 2000);
       return;

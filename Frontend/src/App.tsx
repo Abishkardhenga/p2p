@@ -36,7 +36,7 @@ const App = () => (
   <ZKLoginProvider client={suiClient}>
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networks} defaultNetwork="devnet">
-        <WalletProvider>
+      <WalletProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
