@@ -93,6 +93,7 @@ export interface PromptFormData {
   model: string;
   price: number;
   testPrice: number;
+  userPrompt: string;
   systemPrompt: string;
   sampleInputs: string[];
   sampleOutputs: string[];
@@ -129,6 +130,8 @@ export async function handleSubmit(
   const metadata = {
     title: formData.title,
     description: formData.description,
+    systemPrompt: encryptedPromptUri,
+    userPrompt: formData.userPrompt,
     longDescription: formData.longDescription,
     category: formData.category,
     subcategory: formData.subcategory,
