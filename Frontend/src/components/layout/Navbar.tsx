@@ -136,7 +136,7 @@ const Navbar = () => {
                           Dashboard
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-gray-300 hover:text-white focus:text-white hover:bg-neon-purple/10 focus:bg-neon-purple/10">
+                      {/* <DropdownMenuItem className="text-gray-300 hover:text-white focus:text-white hover:bg-neon-purple/10 focus:bg-neon-purple/10">
                         <Link
                           to="/profile"
                           className="w-full flex items-center"
@@ -144,7 +144,7 @@ const Navbar = () => {
                           <User className="h-4 w-4 mr-2" />
                           Profile
                         </Link>
-                      </DropdownMenuItem>
+                      </DropdownMenuItem> */}
                       <DropdownMenuItem className="text-gray-300 hover:text-white focus:text-white hover:bg-neon-purple/10 focus:bg-neon-purple/10">
                         <Link
                           to="/sell-prompt"

@@ -146,16 +146,19 @@ const SellPrompt = () => {
       id: 2,
       name: "dall-e-2",
     },
+  ]
+
+  const textmodels = [
     {
-      id: 3,
+      id: 1,
       name: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
     },
     {
-      id: 4,
+      id: 2,
       name: "Qwen/QwQ-32B",
     },
     {
-      id: 5,
+      id: 3,
       name: "mistralai/Mistral-Nemo-Instruct-2407",
     },
   ]
@@ -405,11 +408,13 @@ const SellPrompt = () => {
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="prompt">Prompt </SelectItem>
-                          <SelectItem value="premium-content">
-                            Premium Content
+                          <SelectItem value="Text-Prompt">
+                            Text-Prompt
                           </SelectItem>
-                          <SelectItem value="dataset">Dataset</SelectItem>
+                          <SelectItem value="Image-Prompt">
+                            Image-Prompt
+                          </SelectItem>
+                          {/* <SelectItem value="dataset">Dataset</SelectItem> */}
                         </SelectContent>
                       </Select>
                     </div>
@@ -438,9 +443,9 @@ const SellPrompt = () => {
                       </div>
                     )}
 
-                    {formData.category === "prompt" && (
+                    {formData.category === "Image-Prompt" && (
                       <div className="space-y-2">
-                        <Label htmlFor="model">AI Model</Label>
+                        <Label htmlFor="model">Image Model</Label>
                         <Select
                           value={formData.model}
                           onValueChange={(value) =>
@@ -448,10 +453,40 @@ const SellPrompt = () => {
                           }
                         >
                           <SelectTrigger id="model">
-                            <SelectValue placeholder="Select a model" />
+                            <SelectValue
+                              className="text-white"
+                              placeholder="Select a model"
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {models.map((item) => {
+                              return (
+                                <SelectItem value={item.name} key={item.id}>
+                                  {item.name}
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {formData.category === "Text-Prompt" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="model">Text Model</Label>
+                        <Select
+                          value={formData.model}
+                          onValueChange={(value) =>
+                            handleSelectChange("model", value)
+                          }
+                        >
+                          <SelectTrigger id="model">
+                            <SelectValue
+                              className="text-white"
+                              placeholder="Select a model"
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {textmodels.map((item) => {
                               return (
                                 <SelectItem value={item.name} key={item.id}>
                                   {item.name}
@@ -503,7 +538,7 @@ const SellPrompt = () => {
                       of your prompt.
                     </p>
                   </div>
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="testPrice">Test Price (USD)</Label>
 
@@ -549,7 +584,7 @@ const SellPrompt = () => {
                       Test price must be 10% or less than the original price ($
                       {formData.price.toFixed(2)}).
                     </p>
-                  </div>
+                  </div> */}
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button
