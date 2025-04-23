@@ -8,6 +8,17 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5173,
+    proxy: {
+      // Proxy Walrus publisher and aggregator to local backend
+      '/publisher1': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/aggregator1': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),

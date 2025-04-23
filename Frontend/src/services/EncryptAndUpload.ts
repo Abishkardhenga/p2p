@@ -1,8 +1,8 @@
-// Copyright (c), Mystue Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
 import { Transaction } from '@mysten/sui/transactions';
 import { getAllowlistedKeyServers, SealClient } from '@mysten/seal';
 import { fromHex, toHex } from '@mysten/sui/utils';
+import { listPrompt } from './MarketplaceService';
+import { TESTNET_MARKETPLACE_ID } from '@/constants';
 
 export type Data = {
   status: string;
@@ -23,7 +23,7 @@ type WalrusService = {
   aggregatorUrl: string;
 };
 
-const NUM_EPOCH = 1;
+const NUM_EPOCH = 2;
 
 export const walrusServices: WalrusService[] = [
   {
@@ -33,40 +33,6 @@ export const walrusServices: WalrusService[] = [
     aggregatorUrl: '/aggregator1',
   },
 ];
-
-/**
- * Encrypt data with SEAL and upload to Walrus
- * @param data - raw bytes to encrypt (e.g. system prompt utf8 bytes)
- * @param policyObject - policy object string for SEAL
- * @param suiClient - Sui client
- * @param packageId - package ID
- * @param selectedService - walrus service id
- */
-export async function encryptAndUpload(
-  data: Uint8Array,
-  policyObject: string,
-  suiClient: any,
-  packageId: string,
-  selectedService: string = 'service1'
-): Promise<Data> {
-  // init SEAL client
-  const serverObjectIds = getAllowlistedKeyServers('testnet');
-  const client = new SealClient({
-    suiClient,
-    serverObjectIds,
-    verifyKeyServers: false,
-  });
-  // encrypt
-  const result = await client.encrypt({
-    id: policyObject,
-    packageId,
-    threshold: NUM_EPOCH,
-    data,
-  });
-  // upload encrypted blob
-  const info = await storeBlob(result.encryptedObject, selectedService);
-  return info;
-}
 
 /**
  * Upload plain (unencrypted) blob to Walrus
@@ -115,4 +81,75 @@ export async function publishToSui(
   });
   tx.setGasBudget(10000000);
   return suiClient.executeTransactionBlock(tx);
+}
+
+// ---- Unified prompt submission (migrated from PromptService) ----
+export interface PromptFormData {
+  title: string;
+  description: string;
+  longDescription: string;
+  category: string;
+  subcategory: string;
+  model: string;
+  price: number;
+  testPrice: number;
+  systemPrompt: string;
+  sampleInputs: string[];
+  sampleOutputs: string[];
+  sampleImages: string[];
+}
+
+/**
+ * Handles full prompt submission: encrypts with SEAL under a policy object, uploads, and lists on-chain
+ * @param formData - prompt form values
+ * @param suiClient - Sui client
+ * @param packageId - Move package ID for on-chain listing
+ * @param policyObject - Sui object ID to use as SEAL policy object (e.g. allowlist cap)
+ */
+export async function handleSubmit(
+  formData: PromptFormData,
+  suiClient: any,
+  packageId: string,
+  policyObject: string
+): Promise<any> {
+  const encoder = new TextEncoder();
+  // Inline SEAL encryption & Walrus upload (instead of encryptAndUpload)
+  const serverObjectIds = getAllowlistedKeyServers('testnet');
+  if (!serverObjectIds || serverObjectIds.length === 0) {
+    throw new Error('No key server addresses found for network "testnet"');
+  }
+  const client = new SealClient({ suiClient, serverObjectIds, verifyKeyServers: false });
+  const nonce = crypto.getRandomValues(new Uint8Array(5));
+  const policyObjectBytes = fromHex(policyObject);
+  const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
+  const result = await client.encrypt({ id, packageId, threshold: NUM_EPOCH, data: encoder.encode(formData.systemPrompt) });
+  const infoEncrypted = await storeBlob(result.encryptedObject, 'service1');
+  const encryptedPromptUri = infoEncrypted.blobId;
+
+  const metadata = {
+    title: formData.title,
+    description: formData.description,
+    longDescription: formData.longDescription,
+    category: formData.category,
+    subcategory: formData.subcategory,
+    model: formData.model,
+    sampleInputs: formData.sampleInputs,
+    sampleOutputs: formData.sampleOutputs,
+    sampleImages: formData.sampleImages,
+    price: formData.price,
+    testPrice: formData.testPrice,
+  };
+  const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+  const uploaded = await uploadPlain(metadataBlob);
+  const metadataUri = uploaded.blobId;
+
+  return listPrompt(
+    suiClient,
+    packageId,
+    TESTNET_MARKETPLACE_ID,
+    metadataUri,
+    encryptedPromptUri,
+    formData.price,
+    formData.testPrice
+  );
 }

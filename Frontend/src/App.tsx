@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,8 +21,7 @@ import { getFullnodeUrl } from "@mysten/sui.js/client"
 import Test from "./pages/test"
 
 const queryClient = new QueryClient()
-const FULLNODE_URL = "https://fullnode.devnet.sui.io/"
-const suiClient = new SuiClient({ url: FULLNODE_URL })
+const suiClient = new SuiClient({ url: getFullnodeUrl("testnet") })
 
 const networks = {
   localnet: { url: getFullnodeUrl("localnet") },
@@ -35,7 +33,7 @@ const networks = {
 const App = () => (
   <ZKLoginProvider client={suiClient}>
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networks} defaultNetwork="devnet">
+      <SuiClientProvider networks={networks} defaultNetwork="testnet">
       <WalletProvider>
           <TooltipProvider>
             <Toaster />

@@ -31,9 +31,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { submitPrompt, PromptFormData } from "@/services/PromptService";
+import { handleSubmit as submitPrompt, PromptFormData } from "@/services/EncryptAndUpload";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useNetworkVariable } from "@/configs/networkConfig";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import {TESTNET_MARKETPLACE_ID, TESTNET_PACKAGE_ID} from '@/constants'
 
 const SellPrompt = () => {
   const navigate = useNavigate()
@@ -62,6 +64,25 @@ const SellPrompt = () => {
       "https://assets.promptbase.com/DALLE_IMAGES%2FVAXItKojEQXmXUs4prJNIftWE6T2%2Fresized%2F1725762092286a_200x200.webp?alt=media&token=4791f95d-7942-4474-abcc-9068465e906f",
     ],
   })
+
+  // Determine SEAL policy object (allowlist cap) from owned caps
+  const currentAccount = useCurrentAccount();
+  const [policyObject, setPolicyObject] = useState<string>("");
+
+  useEffect(() => {
+    async function fetchCap() {
+      if (!currentAccount?.address) return;
+      const res = await suiClient.getOwnedObjects({
+        owner: currentAccount.address,
+        options: { showContent: true, showType: true },
+        filter: { StructType: `${packageId}::allowlist::Cap` },
+      });
+      const caps = res.data.map(obj => (obj.data?.content as any).fields)
+        .map(f => f.id.id as string);
+      if (caps.length > 0) setPolicyObject(caps[0]);
+    }
+    fetchCap();
+  }, [currentAccount, packageId]);
 
   const [showAIModel, setShowAiModel] = useState(false)
   const [modelSettings, setModelSettings] = useState({
@@ -277,11 +298,13 @@ const SellPrompt = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await submitPrompt(formData as PromptFormData, suiClient, packageId);
+      // Use the fetched allowlist cap as policy object
+      await submitPrompt(formData as PromptFormData, suiClient, TESTNET_PACKAGE_ID, policyObject);
       toast({ title: "Prompt Submitted", description: "Your prompt is now listed on chain." });
       setTimeout(() => navigate("/dashboard/my-prompts"), 2000);
       return;
     } catch (err: any) {
+      console.log(err)
       toast({ title: "Submission failed", description: err.message, variant: "destructive" });
       return;
     }
