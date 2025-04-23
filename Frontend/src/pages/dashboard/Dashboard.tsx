@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MdContentCopy } from "react-icons/md"
+import { truncateAddress } from "@/utils/formatAddress"
 
 import {
   ShoppingCart,
@@ -34,14 +35,11 @@ import Footer from "@/components/layout/Footer"
 import Navbar from "@/components/layout/Navbar"
 import { useZKLogin } from "react-sui-zk-login-kit"
 import { useCurrentAccount } from "@mysten/dapp-kit"
-import { truncateAddress } from "@/lib/truncket"
 
 const Dashboard = () => {
   const [tab, setTab] = useState("overview")
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
   const account = useCurrentAccount()
-
-  console.log("truncate address", truncateAddress(address))
 
   // Mock function for purchasing credits
   const handlePurchaseCredits = () => {
@@ -146,14 +144,7 @@ const Dashboard = () => {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-xl font-bold text-white">John Doe</h2>
-                  {/* <span className="text-xs text-gray-400 bg-gray-800 rounded-full px-2 py-0.5 flex items-center">
-                    <Wallet className="h-3 w-3 mr-1 text-neon-pink" />
-                    {address
-                      ? address.slice(0, 6) + "..." + address.slice(-4)
-                      : "Not Connected"}
-                  </span> */}
                 </div>
-                {/* <p className="text-gray-300">john@example.com</p> */}
                 <div className="flex items-center mt-1"></div>
                 {address && (
                   <div className="flex items-center gap-1">

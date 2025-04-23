@@ -46,6 +46,7 @@ const SellPrompt = () => {
     price: 19.99,
     testPrice: 1.99, // Add separate testPrice field
     systemPrompt: "",
+    userPrompt: "",
     sampleInputs: [
       "A minimal and surreal design with a color scheme of dreamy pastels and soft gradients; using woodcut and color processing printing techniques with surreal details; inspired by surrealism and dreamlike art; the focus is lovers; mood is surreal and introspective. --v 6.1",
     ],
@@ -500,7 +501,9 @@ const SellPrompt = () => {
                               ≈
                             </span>
                             <span className="text-xs font-medium text-blue-400">
-                              {(formData.price / currentSuiPrice).toFixed(2)}{" "}
+                              {(formData.testPrice / currentSuiPrice).toFixed(
+                                2
+                              )}{" "}
                               SUI
                             </span>
                           </div>
@@ -581,7 +584,7 @@ const SellPrompt = () => {
                             <p>
                               This is the prompt that buyers will receive after
                               purchase. Make it detailed and comprehensive for
-                              best results and the prompt will be encrypted .
+                              best results and the prompt will be encrypted.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -601,9 +604,10 @@ const SellPrompt = () => {
                       purchase.
                     </p>
                   </div>
+
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="systemPrompt">User Prompt</Label>
+                      <Label htmlFor="userPrompt">User Prompt</Label>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -618,151 +622,26 @@ const SellPrompt = () => {
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
                             <p>
-                              This is the user prompt . This part won't be
-                              encrypted
+                              This is the user prompt. This part won't be
+                              encrypted.
                             </p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
                     <Textarea
-                      id="systemPrompt"
-                      name="systemPrompt"
-                      placeholder="Enter your user  prompt here"
-                      value={formData.systemPrompt}
+                      id="userPrompt"
+                      name="userPrompt"
+                      placeholder="Enter your user prompt here"
+                      value={formData.userPrompt}
                       onChange={handleInputChange}
                       className="min-h-[200px] font-mono text-sm"
                       required
                     />
-                    {/* <p className="text-xs text-gray-500">
-                      This is the usr prompt that buyers will receive after
-                      purchase.
-                    </p> */}
+                    <p className="text-xs text-gray-500">
+                      This is the prompt users will see and can customize.
+                    </p>
                   </div>
-                  {/* <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Model Settings</h3>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Info className="h-4 w-4" />
-                              <span className="sr-only">Info</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>
-                              Adjust these settings to optimize how the AI model
-                              processes your prompt. Different values produce
-                              different results.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>
-                              Temperature: {modelSettings.temperature[0]}
-                            </Label>
-                          </div>
-                          <Slider
-                            min={0}
-                            max={2}
-                            step={0.1}
-                            value={modelSettings.temperature}
-                            onValueChange={(value) =>
-                              setModelSettings((prev) => ({
-                                ...prev,
-                                temperature: value,
-                              }))
-                            }
-                          />
-                          <p className="text-xs text-gray-500">
-                            Controls randomness: Lower is more focused, higher
-                            is more creative
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>
-                              Max Tokens: {modelSettings.maxTokens[0]}
-                            </Label>
-                          </div>
-                          <Slider
-                            min={100}
-                            max={4000}
-                            step={100}
-                            value={modelSettings.maxTokens}
-                            onValueChange={(value) =>
-                              setModelSettings((prev) => ({
-                                ...prev,
-                                maxTokens: value,
-                              }))
-                            }
-                          />
-                          <p className="text-xs text-gray-500">
-                            Maximum length of the generated text
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>Top P: {modelSettings.topP[0]}</Label>
-                          </div>
-                          <Slider
-                            min={0.1}
-                            max={1}
-                            step={0.05}
-                            value={modelSettings.topP}
-                            onValueChange={(value) =>
-                              setModelSettings((prev) => ({
-                                ...prev,
-                                topP: value,
-                              }))
-                            }
-                          />
-                          <p className="text-xs text-gray-500">
-                            Controls diversity via nucleus sampling
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>
-                              Frequency Penalty:{" "}
-                              {modelSettings.frequencyPenalty[0]}
-                            </Label>
-                          </div>
-                          <Slider
-                            min={0}
-                            max={2}
-                            step={0.1}
-                            value={modelSettings.frequencyPenalty}
-                            onValueChange={(value) =>
-                              setModelSettings((prev) => ({
-                                ...prev,
-                                frequencyPenalty: value,
-                              }))
-                            }
-                          />
-                          <p className="text-xs text-gray-500">
-                            Reduces repetition of token sequences
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div> */}
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button
@@ -956,7 +835,7 @@ const SellPrompt = () => {
                                 )}
 
                                 {/* URL input always available as an alternative */}
-                                <div className="flex items-center gap-2">
+                                {/* <div className="flex items-center gap-2">
                                   <Input
                                     type="text"
                                     placeholder="Or paste image URL"
@@ -998,10 +877,10 @@ const SellPrompt = () => {
                                   >
                                     Test URL
                                   </Button>
-                                </div>
+                                </div> */}
 
                                 {/* Text description field */}
-                                <Textarea
+                                {/* <Textarea
                                   placeholder="Describe what this image shows (optional)"
                                   value={formData.sampleOutputs[index] || ""}
                                   onChange={(e) =>
@@ -1013,7 +892,7 @@ const SellPrompt = () => {
                                   }
                                   className="resize-none text-sm"
                                   rows={2}
-                                />
+                                /> */}
                               </div>
                             ) : (
                               // For non-image prompts, show regular text area
