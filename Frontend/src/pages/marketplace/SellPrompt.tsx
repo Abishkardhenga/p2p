@@ -79,6 +79,7 @@ const SellPrompt = () => {
 
   // Determine SEAL policy object (allowlist cap) from owned caps
   const currentAccount = useCurrentAccount();
+  const currentAddress = currentAccount?.address || '';
   const [capId, setInnerCapId] = useState<string>("");
   const [policyObject, setPolicyObject] = useState<string>("");
   const [allowlist, setAllowlist] = useState({ id: "", name: "", list: [] });
@@ -483,7 +484,7 @@ const SellPrompt = () => {
         options: { showContent: true, showType: true },
         filter: { StructType: `${TESTNET_PACKAGE_ID}::ai_marketplace::Cap` },
       });
-  
+      console.log(usedPolicy, typeof(usedPolicy))
       // proceed with submission
       await submitPrompt(
         formData as PromptFormData,
@@ -491,7 +492,8 @@ const SellPrompt = () => {
         TESTNET_PACKAGE_ID,
         usedPolicy,
         usedCap,
-        signAndExecute
+        signAndExecute,
+        currentAddress
       );
 
       toast({

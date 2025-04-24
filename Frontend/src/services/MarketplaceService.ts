@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Transaction } from '@mysten/sui/transactions';
+import { bcs } from '@mysten/sui/bcs';
 // using DappKit provider client directly, no explicit SuiClient import
 
 /**
@@ -21,7 +22,8 @@ export async function listPrompt(
   metadataUri: string,
   encryptedPromptUri: string,
   price: number,
-  testPrice: number
+  testPrice: number,
+  signAndExecute: any,
 ): Promise<any> {
   const tx = new Transaction();
   tx.moveCall({
@@ -30,15 +32,16 @@ export async function listPrompt(
       tx.object(marketplaceId),
       tx.pure.string(metadataUri),
       tx.pure.string(encryptedPromptUri),
-      tx.pure.u64(price),
-      tx.pure.u64(testPrice),
-      tx.pure.u8(0), // no allowlist
+      tx.pure.u64(price * (10**9)),
+      tx.pure.u64(testPrice * (10**9)),
+      // tx.pure(bcs.option(bcs.Address).serialize(null).toBytes()), // no allowlist
     ],
   });
   tx.setGasBudget(1000000);
   // sign and execute transaction block via provider (wallet will sign)
-  return suiClient.signAndExecuteTransactionBlock({
-    transactionBlock: await tx.build(),
-    options: { showBalanceChanges: true },
-  });
+
+  const res2: any = await new Promise((res, rej) =>
+    signAndExecute({ transaction: tx }, { onSuccess: res, onError: rej })
+  );
+  return res2;
 }

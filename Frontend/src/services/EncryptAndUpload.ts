@@ -3,6 +3,7 @@ import { getAllowlistedKeyServers, SealClient } from '@mysten/seal';
 import { fromHex, toHex } from '@mysten/sui/utils';
 import { listPrompt } from './MarketplaceService';
 import { TESTNET_MARKETPLACE_ID } from '@/constants';
+import { Address } from 'cluster';
 
 export type Data = {
   status: string;
@@ -79,7 +80,8 @@ export async function publishToSui(
   capId: string,
   blobId: string,
   packageId: string,
-  signAndExecute: any
+  signAndExecute: any,
+  currentAddress: any
 ): Promise<any> {
   // Ensure required params
   if (!policyObject || !capId || !blobId || !packageId) {
@@ -92,9 +94,11 @@ export async function publishToSui(
       target: `${packageId}::ai_marketplace::publish`,
       typeArguments: [],
       arguments: [
+        tx.object(TESTNET_MARKETPLACE_ID),
         tx.object(policyObject),
         tx.object(capId),
         tx.pure.string(blobId),
+        tx.pure.address(currentAddress),
       ],
     });
 
@@ -144,6 +148,9 @@ export interface PromptFormData {
  * @param suiClient - Sui client
  * @param packageId - Move package ID for on-chain listing
  * @param policyObject - Sui object ID to use as SEAL policy object (e.g. allowlist cap)
+ * @param capId - Sui object ID for the cap
+ * @param signAndExecute - Function to sign and execute transaction
+ * @param currentAddress - Current wallet address
  */
 export async function handleSubmit(
   formData: PromptFormData,
@@ -151,7 +158,8 @@ export async function handleSubmit(
   packageId: string,
   policyObject: any,
   capId: string,
-  signAndExecute: any
+  signAndExecute: any,
+  currentAddress:any,
 ): Promise<any> {
   const encoder = new TextEncoder();
   // Inline SEAL encryption & Walrus upload (instead of encryptAndUpload)
@@ -171,7 +179,7 @@ export async function handleSubmit(
   // Ensure encrypted URI exists
   if (!encryptedPromptUri) throw new Error('handleSubmit: missing encryptedPromptUri');
   // Publish encrypted blob on-chain
-  await publishToSui(policyObject, capId, encryptedPromptUri, packageId, signAndExecute);
+  await publishToSui(policyObject, capId, encryptedPromptUri, packageId, signAndExecute, currentAddress);
 
   const metadata = {
     title: formData.title,
@@ -196,7 +204,7 @@ export async function handleSubmit(
   // Ensure metadata URI exists
   if (!metadataUri) throw new Error('handleSubmit: missing metadataUri');
   // Publish metadata blob on-chain
-  await publishToSui(policyObject, capId, metadataUri, packageId, signAndExecute);
+  await publishToSui(policyObject, capId, metadataUri, packageId, signAndExecute, currentAddress);
 
   return listPrompt(
     suiClient,
@@ -205,6 +213,7 @@ export async function handleSubmit(
     metadataUri,
     encryptedPromptUri,
     formData.price,
-    formData.testPrice
+    formData.testPrice,
+    signAndExecute,
   );
 }
