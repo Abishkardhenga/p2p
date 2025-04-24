@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, List
+import uuid
 
 from models.schemas import (
     Content, ContentCreate, ImageContentCreate, Purchase, SearchQuery, 
