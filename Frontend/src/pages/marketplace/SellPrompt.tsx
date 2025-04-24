@@ -322,26 +322,16 @@ const SellPrompt = () => {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      // Use the fetched allowlist cap as policy object
-      await submitPrompt(formData as PromptFormData, suiClient, TESTNET_PACKAGE_ID, policyObject);
-      toast({ title: "Prompt Submitted", description: "Your prompt is now listed on chain." });
-      setTimeout(() => navigate("/dashboard/my-prompts"), 2000);
-      return;
-    } catch (err: any) {
-      console.log(err)
-      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
-      return;
-    }
+    e.preventDefault()
 
-    // Validation
+    // Basic validation
     if (
       !formData.title ||
       !formData.description ||
       !formData.category ||
       !formData.model ||
-      !formData.systemPrompt
+      !formData.systemPrompt ||
+      !formData.userPrompt
     ) {
       toast({
         title: "Missing required fields",
@@ -351,25 +341,79 @@ const SellPrompt = () => {
       return
     }
 
-    // Check sample inputs/outputs
-    if (formData.sampleInputs[0] === "" || formData.sampleOutputs[0] === "") {
+    // Check sample inputs/outputs or images
+    if (formData.sampleInputs[0] === "") {
       toast({
-        title: "Sample required",
-        description: "Please provide at least one sample input and output.",
+        title: "Sample input required",
+        description: "Please provide at least one sample input.",
         variant: "destructive",
       })
       return
     }
 
-    // Submit form - this would normally call an API
-    toast({
-      title: "Prompt Submitted",
-      description: "Your prompt has been submitted for review.",
-    })
+    // Check the appropriate sample output type based on prompt category
+    if (formData.category === "Image-Prompt" && !formData.sampleImages[0]) {
+      toast({
+        title: "Sample image required",
+        description:
+          "Please provide at least one sample image for your image prompt.",
+        variant: "destructive",
+      })
+      return
+    } else if (
+      formData.category === "Text-Prompt" &&
+      !formData.sampleOutputs[0]
+    ) {
+      toast({
+        title: "Sample output required",
+        description:
+          "Please provide at least one sample output for your text prompt.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    setTimeout(() => {
-      navigate("/dashboard/my-prompts")
-    }, 2000)
+    try {
+      // Show loading state
+      toast({
+        title: "Processing submission...",
+        description: "Please wait while we upload your prompt.",
+      })
+
+      // Use the fetched allowlist cap as policy object
+      if (!policyObject) {
+        toast({
+          title: "Authorization Error",
+          description: "Missing allowlist capability. Please contact support.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      await submitPrompt(
+        formData as PromptFormData,
+        suiClient,
+        TESTNET_PACKAGE_ID,
+        policyObject
+      )
+
+      toast({
+        title: "Prompt Submitted Successfully!",
+        description: "Your prompt is now listed on chain.",
+        variant: "default",
+      })
+
+      // Navigate after success
+      setTimeout(() => navigate("/dashboard/my-prompts"), 2000)
+    } catch (err: any) {
+      console.error("Submission error:", err)
+      toast({
+        title: "Submission failed",
+        description:
+          err.message || "There was an error submitting your prompt.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -1452,22 +1496,28 @@ const SellPrompt = () => {
                     variant="outline"
                     type="button"
                     className="px-8 py-6 text-lg border-purple-500 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 transition-all duration-300"
-                    onClick={() => setActiveTab("details")}
+                    onClick={() => setActiveTab("content")}
                   >
                     Back
                   </Button>
                   <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => setActiveTab("samples")}
-                    disabled={!isContentTabValid()}
-                    className={`px-8 py-6 text-lg border-purple-500 ${
-                      isContentTabValid()
-                        ? "text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
-                        : "text-gray-500 cursor-not-allowed opacity-50"
+                    type="submit"
+                    className={`px-8 py-6 text-lg ${
+                      formData.sampleInputs[0] &&
+                      (formData.category === "Image-Prompt"
+                        ? formData.sampleImages[0]
+                        : formData.sampleOutputs[0])
+                        ? "bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 text-white"
+                        : "bg-gray-700/50 text-gray-400 cursor-not-allowed"
                     } transition-all duration-300`}
+                    disabled={
+                      !formData.sampleInputs[0] ||
+                      (formData.category === "Image-Prompt"
+                        ? !formData.sampleImages[0]
+                        : !formData.sampleOutputs[0])
+                    }
                   >
-                    Next
+                    Submit Prompt
                   </Button>
                 </CardFooter>
               </Card>
