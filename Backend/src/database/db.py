@@ -92,7 +92,8 @@ class SQLiteDatabase:
             price REAL,
             system_prompt TEXT,
             metadata TEXT,
-            prompt TEXT
+            prompt TEXT,
+            preview_url TEXT
         )
         ''')
         
