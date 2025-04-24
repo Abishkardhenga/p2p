@@ -83,71 +83,56 @@ const SellPrompt = () => {
   const [policyObject, setPolicyObject] = useState<string>("");
   const [allowlist, setAllowlist] = useState({ id: "", name: "", list: [] });
 
-  useEffect(() => {
-    if (!currentAccount?.address) return;  // skip until account is available
-    console.log(currentAccount.address)
-    async function getAllowlist() {
-      try{
-        if (!packageId) return;
-         // Retrieve owned Cap objects for allowlist
-      const res = await suiClient.getOwnedObjects({
-        owner: currentAccount.address,
-        options: { showContent: true, showType: true },
-        filter: { StructType: `${TESTNET_PACKAGE_ID}::walrus::ai_marketplace::Cap` },
-      });
+  // async function getAllowlist() {
+  //   try{
+  //     if (!TESTNET_PACKAGE_ID) return;
+  //      // Retrieve owned Cap objects for allowlist
+  //   const res = await suiClient.getOwnedObjects({
+  //     owner: currentAccount.address,
+  //     options: { showContent: true, showType: true },
+  //     filter: { StructType: `${TESTNET_PACKAGE_ID}::walrus::ai_marketplace::Cap` },
+  //   });
 
-      console.log("res 93",res)
+  //   console.log("res 93",res)
 
-      // Extract cap and policy (allowlist object) IDs
-      const items = res.data.map((obj) => {
-        const fields = (obj!.data!.content as { fields: any }).fields;
-        return {
-          capId: fields.id.id,
-          policyObjectId: fields.allowlist_id,
-        };
-      });
-      if (items.length > 0) {
-        const { capId: cap, policyObjectId: policy } = items[0];
-        setInnerCapId(cap);
-        setPolicyObject(policy);
-        // load the allowlist metadata
-        const allowlistObj = await suiClient.getObject({
-          id: policy,
-          options: { showContent: true },
-        });
-        const f = (allowlistObj.data?.content as { fields: any })?.fields || {};
-        setAllowlist({ id: policy, name: f.name, list: f.list });
-      } else {
-        // create new allowlist and cap for testing
-        const tx = new Transaction()
-        tx.setGasBudget(10000000);
-        const txResult: any = await new Promise((resolve, reject) => {
-          signAndExecute({ transaction: tx }, { onSuccess: resolve, onError: reject });
-        });
-        const created = txResult.effects?.created || [];
-        const newAllowlistId = created[0]?.objectId;
-        const newCapId = created[1]?.objectId;
-        setInnerCapId(newCapId);
-        setPolicyObject(newAllowlistId);
-        setAllowlist({ id: newAllowlistId, name: 'test', list: [] });
-      }
-      }
-     catch(e){
-      console.log("error", e);
-     }
-    }
-
-    // Call getAllowlist immediately
-    getAllowlist();
-
-    // Set up interval to call getAllowlist every 3 seconds
-    const intervalId = setInterval(() => {
-      getAllowlist();
-    }, 3000);
-
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId);
-  }, [currentAccount?.address, packageId]);
+  //   // Extract cap and policy (allowlist object) IDs
+  //   const items = res.data.map((obj) => {
+  //     const fields = (obj!.data!.content as { fields: any }).fields;
+  //     return {
+  //       capId: fields.id.id,
+  //       policyObjectId: fields.allowlist_id,
+  //     };
+  //   });
+    
+  //   if (items.length > 0) {
+  //     const { capId: cap, policyObjectId: policy } = items[0];
+  //     setInnerCapId(cap);
+  //     setPolicyObject(policy);
+  //     // return found allowlist and cap
+  //     return { cap, policy };
+  //   } else {
+  //     // create new allowlist and cap for testing
+  //       const tx = new Transaction()
+  //       tx.setGasBudget(10000000);
+  //       const txResult: any = await new Promise((resolve, reject) => {
+  //         signAndExecute({ transaction: tx }, { onSuccess: resolve, onError: reject });
+  //       });
+  //       const created = txResult.effects?.created || [];
+  //       const newAllowlistId = created[0]?.objectId;
+  //       const newCapId = created[1]?.objectId;
+  //       setInnerCapId(newCapId);
+  //       setPolicyObject(newAllowlistId);
+  //       setAllowlist({ id: newAllowlistId, name: 'test', list: [] });
+  //       // return created allowlist and cap
+  //       return { cap: newCapId, policy: newAllowlistId };
+  //     }
+  //   }
+  //  catch(e){
+  //   console.log("error", e);
+  //   // fallback return empty if error
+  //   return { cap: "", policy: "" };
+  //  }
+  // }
 
   const [showAIModel, setShowAiModel] = useState(false)
   const [modelSettings, setModelSettings] = useState({
@@ -470,24 +455,35 @@ const SellPrompt = () => {
           ],
         });
         console.log(newAllowlist)
-        const newCap = tx2.moveCall({
-          target: `${TESTNET_PACKAGE_ID}::ai_marketplace::new_cap_for_testing`,
-          typeArguments: [],
-          arguments: [newAllowlist],
-        });
-        console.log("New cap",newCap)
         tx2.setGasBudget(10000000);
         const res2: any = await new Promise((res, rej) =>
           signAndExecute({ transaction: tx2 }, { onSuccess: res, onError: rej })
         );
-        console.log(res2)
+        
+        const res = await suiClient.getOwnedObjects({
+          owner: currentAccount.address,
+          options: { showContent: true, showType: true },
+          filter: { StructType: `${TESTNET_PACKAGE_ID}::ai_marketplace::Cap` },
+        });
+
+        console.log("New cap",res)
+        console.log(res.data)
+        // Extract object IDs from created object references
         const created = res2.effects?.created || [];
-        usedPolicy = created[0]?.objectId;
-        usedCap = created[1]?.objectId;
+        console.log("created", created)
+        usedPolicy = created[0]?.reference?.objectId;
+        usedCap = created[0]?.reference?.objectId;
         console.log("policy and cap", usedPolicy, usedCap)
         setPolicyObject(usedPolicy);
         setInnerCapId(usedCap);
       }
+
+      const res = await suiClient.getOwnedObjects({
+        owner: currentAccount.address,
+        options: { showContent: true, showType: true },
+        filter: { StructType: `${TESTNET_PACKAGE_ID}::ai_marketplace::Cap` },
+      });
+  
       // proceed with submission
       await submitPrompt(
         formData as PromptFormData,
