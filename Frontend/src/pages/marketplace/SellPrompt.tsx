@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
-import axios from 'axios'
+import axios from "axios"
 import { Info, PlusCircle, Trash } from "lucide-react"
 import {
   Tooltip,
@@ -31,12 +31,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { handleSubmit as submitPrompt, PromptFormData } from "@/services/EncryptAndUpload";
-import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
-import { useNetworkVariable } from "@/configs/networkConfig";
-import { useCurrentAccount } from "@mysten/dapp-kit";
-import {TESTNET_MARKETPLACE_ID, TESTNET_PACKAGE_ID} from '@/constants'
-import { Transaction } from '@mysten/sui/transactions';
+import {
+  handleSubmit as submitPrompt,
+  PromptFormData,
+} from "@/services/EncryptAndUpload"
+import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit"
+import { useNetworkVariable } from "@/configs/networkConfig"
+import { useCurrentAccount } from "@mysten/dapp-kit"
+import { TESTNET_MARKETPLACE_ID, TESTNET_PACKAGE_ID } from "@/constants"
+import { Transaction } from "@mysten/sui/transactions"
 
 const SellPrompt = () => {
   const navigate = useNavigate()
@@ -44,7 +47,7 @@ const SellPrompt = () => {
 
   // Initialize Sui client and package ID for blockchain calls
   const suiClient = useSuiClient()
-  const packageId = useNetworkVariable('packageId')
+  const packageId = useNetworkVariable("packageId")
   const { mutate: signAndExecute } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
       await suiClient.executeTransactionBlock({
@@ -55,7 +58,7 @@ const SellPrompt = () => {
           showEffects: true,
         },
       }),
-  });
+  })
 
   const [formData, setFormData] = useState({
     title: "",
@@ -78,10 +81,10 @@ const SellPrompt = () => {
   })
 
   // Determine SEAL policy object (allowlist cap) from owned caps
-  const currentAccount = useCurrentAccount();
-  const [capId, setInnerCapId] = useState<string>("");
-  const [policyObject, setPolicyObject] = useState<string>("");
-  const [allowlist, setAllowlist] = useState({ id: "", name: "", list: [] });
+  const currentAccount = useCurrentAccount()
+  const [capId, setInnerCapId] = useState<string>("")
+  const [policyObject, setPolicyObject] = useState<string>("")
+  const [allowlist, setAllowlist] = useState({ id: "", name: "", list: [] })
 
   // async function getAllowlist() {
   //   try{
@@ -103,7 +106,7 @@ const SellPrompt = () => {
   //       policyObjectId: fields.allowlist_id,
   //     };
   //   });
-    
+
   //   if (items.length > 0) {
   //     const { capId: cap, policyObjectId: policy } = items[0];
   //     setInnerCapId(cap);
@@ -373,7 +376,7 @@ const SellPrompt = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("checking.." ,policyObject, capId)
+    console.log("checking..", policyObject, capId)
 
     // Basic validation
     if (
@@ -438,12 +441,12 @@ const SellPrompt = () => {
           description: "Missing allowlist capability",
           variant: "destructive",
         })
-        console.log("Missing allowlist capability", allowlist);
+        console.log("Missing allowlist capability", allowlist)
         return
       }
 
-      let usedPolicy = policyObject;
-      let usedCap = capId;
+      let usedPolicy = policyObject
+      let usedCap = capId
       if (!usedPolicy || !usedCap) {
         const tx2 = new Transaction()
         const newAllowlist = tx2.moveCall({
@@ -453,37 +456,37 @@ const SellPrompt = () => {
             tx2.object(TESTNET_MARKETPLACE_ID),
             tx2.pure.string("default"),
           ],
-        });
+        })
         console.log(newAllowlist)
-        tx2.setGasBudget(10000000);
+        tx2.setGasBudget(10000000)
         const res2: any = await new Promise((res, rej) =>
           signAndExecute({ transaction: tx2 }, { onSuccess: res, onError: rej })
-        );
-        
+        )
+
         const res = await suiClient.getOwnedObjects({
           owner: currentAccount.address,
           options: { showContent: true, showType: true },
           filter: { StructType: `${TESTNET_PACKAGE_ID}::ai_marketplace::Cap` },
-        });
+        })
 
-        console.log("New cap",res)
+        console.log("New cap", res)
         console.log(res.data)
         // Extract object IDs from created object references
-        const created = res2.effects?.created || [];
+        const created = res2.effects?.created || []
         console.log("created", created)
-        usedPolicy = created[0]?.reference?.objectId;
-        usedCap = created[0]?.reference?.objectId;
+        usedPolicy = created[0]?.reference?.objectId
+        usedCap = created[0]?.reference?.objectId
         console.log("policy and cap", usedPolicy, usedCap)
-        setPolicyObject(usedPolicy);
-        setInnerCapId(usedCap);
+        setPolicyObject(usedPolicy)
+        setInnerCapId(usedCap)
       }
 
       const res = await suiClient.getOwnedObjects({
         owner: currentAccount.address,
         options: { showContent: true, showType: true },
         filter: { StructType: `${TESTNET_PACKAGE_ID}::ai_marketplace::Cap` },
-      });
-  
+      })
+
       // proceed with submission
       await submitPrompt(
         formData as PromptFormData,
@@ -492,7 +495,7 @@ const SellPrompt = () => {
         usedPolicy,
         usedCap,
         signAndExecute
-      );
+      )
 
       toast({
         title: "Prompt Submitted Successfully!",
