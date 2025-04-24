@@ -157,13 +157,13 @@ class SQLiteDatabase:
             """
             INSERT INTO content (
                 id, owner_id, title, description, llm_model, llm_settings, 
-                price, system_prompt, metadata, prompt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                price, system_prompt, metadata, prompt, preview_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 content.id, content.owner_id, content.title, content.description, content.llm_model,
                 json.dumps(content.llm_settings), float(content.price), 
-                content.system_prompt, json.dumps(content.metadata or {}), content.prompt
+                content.system_prompt, json.dumps(content.metadata or {}), content.prompt, content.preview_url
             )
         )
         

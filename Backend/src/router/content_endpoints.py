@@ -29,7 +29,8 @@ async def add_content(content_data: ContentCreate):
         llm_settings=content_data.llm_settings,
         price=content_data.price,
         metadata=content_data.metadata or {},
-        prompt=content_data.prompt
+        prompt=content_data.prompt,
+        preview_url=content_data.preview_url
     )
     
     saved_content = db.add_content(content)
@@ -55,7 +56,8 @@ async def add_image_generation_content(content_data: ImageContentCreate):
         llm_model=content_data.llm_model,
         llm_settings=content_data.llm_settings,
         price=content_data.price,
-        metadata=metadata
+        metadata=metadata,
+        preview_url=content_data.preview_url
     )
     
     saved_content = db.add_content(content)

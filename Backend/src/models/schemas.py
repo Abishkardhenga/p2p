@@ -20,7 +20,7 @@ class Content(BaseModel):
     system_prompt: Optional[str] = None
     metadata: Optional[Dict] = None
     prompt: Optional[str] = None
-
+    preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
 
 class ContentCreate(BaseModel):
     content_id: Optional[str] = None
@@ -32,6 +32,8 @@ class ContentCreate(BaseModel):
     price: Union[str, float] = 0.0
     metadata: Optional[Dict] = None
     prompt: Optional[str] = None
+    preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
+
 
 class ImageContentCreate(BaseModel):
     content_id: Optional[str] = None
@@ -43,6 +45,7 @@ class ImageContentCreate(BaseModel):
     llm_settings: Dict = DEFAULT_IMAGE_SETTINGS
     price: Union[str, float] = 0.0
     metadata: Optional[Dict] = None
+    preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
 
 
 class Purchase(BaseModel):
