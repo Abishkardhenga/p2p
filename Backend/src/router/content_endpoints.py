@@ -17,7 +17,11 @@ async def add_content(content_data: ContentCreate):
     Add new content to the marketplace
     """
     print(f"\n\n add_text_Completion: owner_id: {content_data.owner_id}")
+    
+    if not content_data.content_id or content_data.content_id == "" or content_data.content_id == "None" or content_data.content_id == "undefined" or content_data.content_id == "null":
+        content_data.content_id = str(uuid.uuid4())
     content = Content(
+        id=content_data.content_id,
         owner_id=content_data.owner_id,
         title=content_data.title,
         description=content_data.description,
@@ -251,3 +255,10 @@ async def get_total_sold_by_user(user_id: str):
     for content_id in content_ids:
         total_sold += len(db.get_purchases_by_content(content_id))
     return total_sold
+
+@router.get("/n_items/{n}", response_model=List[Content])
+async def get_n_items(n: int):
+    """
+    Get n items from the content table
+    """
+    return db.get_n_items(n)

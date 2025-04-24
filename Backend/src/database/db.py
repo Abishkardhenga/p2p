@@ -26,8 +26,6 @@ class InMemoryDatabase:
         return self.users.get(str(user_id))
     
     def add_content(self, content: Content) -> Content:
-        if not content.id:
-            content.id = str(uuid.uuid4())
         print(f"\n\n adding content: {content}")
         self.content[str(content.id)] = content
         return content
@@ -158,13 +156,13 @@ class SQLiteDatabase:
             """
             INSERT INTO content (
                 id, owner_id, title, description, llm_model, llm_settings, 
-                price, system_prompt, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                price, system_prompt, metadata, prompt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 content.id, content.owner_id, content.title, content.description, content.llm_model,
                 json.dumps(content.llm_settings), float(content.price), 
-                content.system_prompt, json.dumps(content.metadata or {})
+                content.system_prompt, json.dumps(content.metadata or {}), content.prompt
             )
         )
         
@@ -180,7 +178,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata
+                   price, system_prompt, metadata, prompt
             FROM content WHERE id = ?
             """, 
             (content_id,)
@@ -200,7 +198,8 @@ class SQLiteDatabase:
                 llm_settings=json.loads(result[5]),
                 price=result[6],
                 system_prompt=result[7],
-                metadata=json.loads(result[8]) if result[8] else None
+                metadata=json.loads(result[8]) if result[8] else None,
+                prompt=result[9] if result[9] else None
             )
         return None
     
@@ -221,6 +220,38 @@ class SQLiteDatabase:
         conn.close()
 
         print(f"\n\n got raw results: {results}")
+        
+        content_list = []
+        for result in results:
+            content_list.append(Content(
+                id=result[0],
+                owner_id=result[1],
+                title=result[2],
+                description=result[3],
+                llm_model=result[4],
+                llm_settings=json.loads(result[5]),
+                price=result[6],
+                system_prompt=result[7],
+                metadata=json.loads(result[8]) if result[8] else None
+            ))
+        
+        return content_list
+    def get_n_items(self, n: int) -> List[Content]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """
+            SELECT id, owner_id, title, description, llm_model, llm_settings,
+                   price, system_prompt, metadata
+            FROM content
+            LIMIT ?
+            """,
+            (n,)
+        )
+        results = cursor.fetchall()
+        
+        conn.close()
         
         content_list = []
         for result in results:

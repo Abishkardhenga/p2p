@@ -23,6 +23,7 @@ class Content(BaseModel):
 
 
 class ContentCreate(BaseModel):
+    content_id: Optional[str] = None
     owner_id: str
     title: str
     description: str
