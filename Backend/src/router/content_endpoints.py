@@ -231,3 +231,22 @@ async def get_total_sold(content_id: str):
     """
     purchases = db.get_purchases_by_content(content_id)
     return len(purchases)
+
+@router.get("/total_purchased/{user_id}", response_model=int)
+async def get_total_purchased(user_id: str):
+    """
+    Get total purchased number of a user given its id
+    """
+    purchases = db.get_purchases_by_user(user_id)
+    return len(purchases)
+
+@router.get("/total_sold_by_user/{user_id}", response_model=int)
+async def get_total_sold_by_user(user_id: str):
+    """
+    Get total sold number of a user given its id
+    """
+    content_ids = [p.content_id for p in db.get_purchases_by_user(user_id)]
+    total_sold = 0
+    for content_id in content_ids:
+        total_sold += len(db.get_purchases_by_content(content_id))
+    return total_sold
