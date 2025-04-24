@@ -93,7 +93,8 @@ class SQLiteDatabase:
             llm_settings TEXT,
             price REAL,
             system_prompt TEXT,
-            metadata TEXT
+            metadata TEXT,
+            prompt TEXT
         )
         ''')
         

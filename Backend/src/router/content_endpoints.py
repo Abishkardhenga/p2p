@@ -24,7 +24,8 @@ async def add_content(content_data: ContentCreate):
         llm_model=content_data.llm_model,
         llm_settings=content_data.llm_settings,
         price=content_data.price,
-        metadata=content_data.metadata or {}
+        metadata=content_data.metadata or {},
+        prompt=content_data.prompt
     )
     
     saved_content = db.add_content(content)

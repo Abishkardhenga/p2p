@@ -19,6 +19,7 @@ class Content(BaseModel):
     price: Union[str, float] = 0.0
     system_prompt: Optional[str] = None
     metadata: Optional[Dict] = None
+    prompt: Optional[str] = None
 
 
 class ContentCreate(BaseModel):
@@ -29,6 +30,7 @@ class ContentCreate(BaseModel):
     llm_settings: Dict = DEFAULT_LLM_SETTINGS
     price: Union[str, float] = 0.0
     metadata: Optional[Dict] = None
+    prompt: Optional[str] = None
 
 class ImageContentCreate(BaseModel):
     title: str
