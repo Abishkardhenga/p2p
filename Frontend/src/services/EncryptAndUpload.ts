@@ -1,4 +1,4 @@
-import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { Transaction } from '@mysten/sui/transactions';
 import { getAllowlistedKeyServers, SealClient } from '@mysten/seal';
 import { fromHex, toHex } from '@mysten/sui/utils';
 import { listPrompt } from './MarketplaceService';
@@ -87,15 +87,14 @@ export async function publishToSui(
     return;
   }
   try {
-    const tx = new TransactionBlock();
+    const tx = new Transaction();
     tx.moveCall({
-      target: `${packageId}::walrus::ai_marketplace::publish`,
+      target: `${packageId}::ai_marketplace::publish`,
       typeArguments: [],
-      // Pass blobId as pure string for Move String
       arguments: [
         tx.object(policyObject),
         tx.object(capId),
-        tx.pure(blobId, 'string'),
+        tx.pure.string(blobId),
       ],
     });
 
