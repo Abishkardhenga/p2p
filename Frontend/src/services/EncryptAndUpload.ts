@@ -68,19 +68,30 @@ async function storeBlob(
  * Publish blob id on Sui via move call
  */
 export async function publishToSui(
-  suiClient: any,
   policyObject: string,
   capId: string,
-  moduleName: string,
-  blobId: string
+  blobId: string,
+  packageId: string,
+  signAndExecute: any
 ): Promise<any> {
   const tx = new Transaction();
-  tx.moveCall({
-    target: `${moduleName}::publish`,
-    arguments: [tx.object(policyObject), tx.object(capId), tx.pure.string(blobId)],
-  });
-  tx.setGasBudget(10000000);
-  return suiClient.executeTransactionBlock(tx);
+    tx.moveCall({
+      target: `${packageId}::ai_marketplace::publish`,
+      arguments: [tx.object(policyObject), tx.object(capId), tx.pure.string(blobId)],
+    });
+
+    tx.setGasBudget(10000000);
+    signAndExecute(
+      {
+        transaction: tx,
+      },
+      {
+        onSuccess: async (result) => {
+          console.log('res', result);
+          alert('Blob attached successfully, now share the link or upload more.');
+        },
+      },
+    );
 }
 
 // ---- Unified prompt submission (migrated from PromptService) ----
@@ -111,7 +122,9 @@ export async function handleSubmit(
   formData: PromptFormData,
   suiClient: any,
   packageId: string,
-  policyObject: string
+  policyObject: any,
+  capId: string,
+  signAndExecute: any
 ): Promise<any> {
   const encoder = new TextEncoder();
   // Inline SEAL encryption & Walrus upload (instead of encryptAndUpload)
@@ -126,6 +139,8 @@ export async function handleSubmit(
   const result = await client.encrypt({ id, packageId, threshold: NUM_EPOCH, data: encoder.encode(formData.systemPrompt) });
   const infoEncrypted = await storeBlob(result.encryptedObject, 'service1');
   const encryptedPromptUri = infoEncrypted.blobId;
+
+  publishToSui(policyObject, capId, encryptedPromptUri, packageId, signAndExecute)
 
   const metadata = {
     title: formData.title,
@@ -145,6 +160,8 @@ export async function handleSubmit(
   const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
   const uploaded = await uploadPlain(metadataBlob);
   const metadataUri = uploaded.blobId;
+
+  publishToSui(policyObject, capId, metadataUri, packageId, signAndExecute)
 
   return listPrompt(
     suiClient,

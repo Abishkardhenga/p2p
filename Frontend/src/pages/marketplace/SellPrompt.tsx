@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast, toast } from "@/components/ui/use-toast"
 import MainLayout from "@/components/layout/MainLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import axios from "axios"
 import {
   Select,
   SelectContent,
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
+import axios from 'axios'
 import { Info, PlusCircle, Trash } from "lucide-react"
 import {
   Tooltip,
@@ -32,7 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { handleSubmit as submitPrompt, PromptFormData } from "@/services/EncryptAndUpload";
-import { useSuiClient } from "@mysten/dapp-kit";
+import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useNetworkVariable } from "@/configs/networkConfig";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import {TESTNET_MARKETPLACE_ID, TESTNET_PACKAGE_ID} from '@/constants'
@@ -44,6 +44,14 @@ const SellPrompt = () => {
   // Initialize Sui client and package ID for blockchain calls
   const suiClient = useSuiClient()
   const packageId = useNetworkVariable('packageId')
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction({
+    execute: async ({ bytes, signature }) =>
+      await suiClient.executeTransactionBlock({
+        transactionBlock: bytes,
+        signature,
+        options: { showRawEffects: true, showEffects: true },
+      }),
+  });
 
   const [formData, setFormData] = useState({
     title: "",
@@ -67,22 +75,59 @@ const SellPrompt = () => {
 
   // Determine SEAL policy object (allowlist cap) from owned caps
   const currentAccount = useCurrentAccount();
-  const [policyObject, setPolicyObject] = useState<string>("");
+  const [capId, setInnerCapId] = useState<string>("")
+  const [allowlist, setAllowlist] = useState({ id: "", name: "", list: [] });
+  const [recipientAllowlist, setRecipientAllowlist] = useState("");
+  const [id, setId] = useState(TESTNET_MARKETPLACE_ID);
 
   useEffect(() => {
-    async function fetchCap() {
-      if (!currentAccount?.address) return;
+    if (!currentAccount?.address) return;  // skip until account is available
+    async function getAllowlist() {
+      // load all caps
       const res = await suiClient.getOwnedObjects({
-        owner: currentAccount.address,
+        owner: currentAccount?.address!,
         options: { showContent: true, showType: true },
         filter: { StructType: `${packageId}::allowlist::Cap` },
       });
-      const caps = res.data.map(obj => (obj.data?.content as any).fields)
-        .map(f => f.id.id as string);
-      if (caps.length > 0) setPolicyObject(caps[0]);
+
+      // find the cap for the given allowlist id
+      const capId = res.data
+        .map((obj) => {
+          const fields = (obj!.data!.content as { fields: any }).fields;
+          return {
+            id: fields?.id.id,
+            allowlist_id: fields?.allowlist_id,
+          };
+        })
+        .filter((item) => item.allowlist_id === id)
+        .map((item) => item.id) as string[];
+      setInnerCapId(capId[0]);
+
+      // load the allowlist for the given id
+      const allowlist = await suiClient.getObject({
+        id: id!,
+        options: { showContent: true },
+      });
+      const fields = (allowlist.data?.content as { fields: any })?.fields || {};
+      setAllowlist({
+        id: id!,
+        name: fields.name,
+        list: fields.list,
+      });
+      setRecipientAllowlist(id!);
     }
-    fetchCap();
-  }, [currentAccount, packageId]);
+
+    // Call getAllowlist immediately
+    getAllowlist();
+
+    // Set up interval to call getAllowlist every 3 seconds
+    const intervalId = setInterval(() => {
+      getAllowlist();
+    }, 3000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, [id, currentAccount?.address]);
 
   const [showAIModel, setShowAiModel] = useState(false)
   const [modelSettings, setModelSettings] = useState({
@@ -381,12 +426,13 @@ const SellPrompt = () => {
       })
 
       // Use the fetched allowlist cap as policy object
-      if (!policyObject) {
+      if (!allowlist) {
         toast({
           title: "Authorization Error",
-          description: "Missing allowlist capability. Please contact support.",
+          description: "Missing allowlist capability",
           variant: "destructive",
         })
+        console.log("Missing allowlist capability", allowlist);
         return
       }
 
@@ -394,8 +440,10 @@ const SellPrompt = () => {
         formData as PromptFormData,
         suiClient,
         TESTNET_PACKAGE_ID,
-        policyObject
-      )
+        allowlist.id,
+        capId,
+        signAndExecute
+      );
 
       toast({
         title: "Prompt Submitted Successfully!",
@@ -1192,7 +1240,7 @@ const SellPrompt = () => {
                     type="button"
                     onClick={() => setActiveTab("samples")}
                     disabled={!isContentTabValid()}
-                    className={`px-8 py-6 text-lg border-purple-500 ${
+                    className={`px-8 py-6 text-lg ${
                       isContentTabValid()
                         ? "text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
                         : "text-gray-500 cursor-not-allowed opacity-50"
