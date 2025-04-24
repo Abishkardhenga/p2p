@@ -222,3 +222,12 @@ async def test_image_gen(test_request: TestImageRequest):
     )
     
     return {"response": response}
+
+
+@router.get("/total_sold/{content_id}", response_model=int)
+async def get_total_sold(content_id: str):
+    """
+    Get total sold number of a content given its id
+    """
+    purchases = db.get_purchases_by_content(content_id)
+    return len(purchases)
