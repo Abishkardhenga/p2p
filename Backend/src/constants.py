@@ -20,7 +20,7 @@ DEFAULT_LLM_SETTINGS = {
 
 DEFAULT_IMAGE_SETTINGS = {
     "size": "1024x1024",
-    "quality": "standard",
+    # "quality": "standard",
     "n": 1
 }
 

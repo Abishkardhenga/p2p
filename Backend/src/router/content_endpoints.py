@@ -16,7 +16,9 @@ async def add_content(content_data: ContentCreate):
     """
     Add new content to the marketplace
     """
+    print(f"\n\n add_text_Completion: owner_id: {content_data.owner_id}")
     content = Content(
+        owner_id=content_data.owner_id,
         title=content_data.title,
         description=content_data.description,
         llm_model=content_data.llm_model,
@@ -54,7 +56,9 @@ async def search_content(search_query: SearchQuery):
     """
     Search for content by title and description
     """
+    print(f"\n /search query:{search_query.query}")
     results = db.search_content(search_query.query)
+    print(f"results: {results}")
     return SearchResult(results=results)
 
 @router.get("/get_content/{content_id}", response_model=Content)
@@ -66,6 +70,14 @@ async def get_content(content_id: str):
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
     return content
+
+@router.get("/get_content_by_owner/{owner_id}", response_model=List[Content])
+async def get_content_by_owner(owner_id: str):
+    """
+    Get content created by a specific owner
+    """
+    content_list = db.get_content_by_owner(owner_id)
+    return content_list
 
 @router.post("/purchase", response_model=Purchase)
 async def purchase_content(purchase_data: Purchase):

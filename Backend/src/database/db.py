@@ -28,6 +28,7 @@ class InMemoryDatabase:
     def add_content(self, content: Content) -> Content:
         if not content.id:
             content.id = str(uuid.uuid4())
+        print(f"\n\n adding content: {content}")
         self.content[str(content.id)] = content
         return content
     
@@ -85,6 +86,7 @@ class SQLiteDatabase:
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS content (
             id TEXT PRIMARY KEY,
+            owner_id TEXT,
             title TEXT,
             description TEXT,
             llm_model TEXT,
@@ -147,19 +149,19 @@ class SQLiteDatabase:
     def add_content(self, content: Content) -> Content:
         if not content.id:
             content.id = str(uuid.uuid4())
-        
+        print(f"\n\n adding content: {content}")
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute(
             """
             INSERT INTO content (
-                id, title, description, llm_model, llm_settings, 
+                id, owner_id, title, description, llm_model, llm_settings, 
                 price, system_prompt, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                content.id, content.title, content.description, content.llm_model,
+                content.id, content.owner_id, content.title, content.description, content.llm_model,
                 json.dumps(content.llm_settings), float(content.price), 
                 content.system_prompt, json.dumps(content.metadata or {})
             )
@@ -199,6 +201,40 @@ class SQLiteDatabase:
             )
         return None
     
+    def get_content_by_owner(self, owner_id: str) -> List[Content]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """
+            SELECT id, owner_id, title, description, llm_model, llm_settings,
+                   price, system_prompt, metadata
+            FROM content WHERE owner_id = ?
+            """,
+            (owner_id,)
+        )
+        results = cursor.fetchall()
+        
+        conn.close()
+
+        print(f"\n\n got raw results: {results}")
+        
+        content_list = []
+        for result in results:
+            content_list.append(Content(
+                id=result[0],
+                owner_id=result[1],
+                title=result[2],
+                description=result[3],
+                llm_model=result[4],
+                llm_settings=json.loads(result[5]),
+                price=result[6],
+                system_prompt=result[7],
+                metadata=json.loads(result[8]) if result[8] else None
+            ))
+        
+        return content_list
+    
     def search_content(self, query: str) -> List[Content]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -207,7 +243,7 @@ class SQLiteDatabase:
         search_param = f"%{query.lower()}%"
         cursor.execute(
             """
-            SELECT id, title, description, llm_model, llm_settings,
+            SELECT id, owner_id, title, description, llm_model, llm_settings,
                    price, system_prompt, metadata
             FROM content 
             WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
@@ -215,20 +251,21 @@ class SQLiteDatabase:
             (search_param, search_param)
         )
         results = cursor.fetchall()
-        
+        print(f"\n\nfucking raw search result: {results}")
         conn.close()
         
         content_list = []
         for result in results:
             content_list.append(Content(
                 id=result[0],
-                title=result[1],
-                description=result[2],
-                llm_model=result[3],
-                llm_settings=json.loads(result[4]),
-                price=result[5],
-                system_prompt=result[6],
-                metadata=json.loads(result[7]) if result[7] else None
+                owner_id=result[1],
+                title=result[2],
+                description=result[3],
+                llm_model=result[4],
+                llm_settings=json.loads(result[5]),
+                price=result[6],
+                system_prompt=result[7],
+                metadata=json.loads(result[8]) if result[8] else None
             ))
         
         return content_list

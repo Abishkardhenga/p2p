@@ -9,19 +9,20 @@ class User(BaseModel):
     profile_picture: Optional[str] = None
     description: Optional[str] = None
 
-
 class Content(BaseModel):
+    id: Optional[str] = None
+    owner_id: str
     title: str
     description: str
     llm_model: str = DEFAULT_LLM_MODEL
     llm_settings: Dict = DEFAULT_LLM_SETTINGS
     price: Union[str, float] = 0.0
     system_prompt: Optional[str] = None
-    id: Optional[str] = None
     metadata: Optional[Dict] = None
 
 
 class ContentCreate(BaseModel):
+    owner_id: str
     title: str
     description: str
     llm_model: str = DEFAULT_LLM_MODEL
