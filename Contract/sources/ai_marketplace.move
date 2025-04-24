@@ -480,9 +480,9 @@ module walrus::ai_marketplace {
         assert!(approve_internal(tx_context::sender(ctx), id, allowlist), ENoAccess);
     }
 
-    public fun publish(marketplace: &mut Marketplace, lid: ID, cap: &Cap, blob_id: String, recipient: address) {
+    public fun publish(marketplace: &mut Marketplace, lid: ID, cap: ID, blob_id: String, recipient: address) {
         let allowlist =table::borrow_mut(&mut marketplace.allowlists, lid);
-        assert!(cap.allowlist_id == object::id(allowlist), EInvalidCap);
+        assert!(cap == object::id(allowlist), EInvalidCap);
         allowlist.list.push_back(recipient);
     }
 

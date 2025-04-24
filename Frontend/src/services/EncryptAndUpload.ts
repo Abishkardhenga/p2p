@@ -3,7 +3,6 @@ import { getAllowlistedKeyServers, SealClient } from '@mysten/seal';
 import { fromHex, toHex } from '@mysten/sui/utils';
 import { listPrompt } from './MarketplaceService';
 import { TESTNET_MARKETPLACE_ID } from '@/constants';
-import { Address } from 'cluster';
 
 export type Data = {
   status: string;
@@ -90,6 +89,7 @@ export async function publishToSui(
   }
   try {
     const tx = new Transaction();
+    console.log(blobId)
     tx.moveCall({
       target: `${packageId}::ai_marketplace::publish`,
       typeArguments: [],

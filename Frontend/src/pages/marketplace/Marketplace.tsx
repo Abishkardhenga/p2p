@@ -1,11 +1,64 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Sparkles } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import FilterSidebar from "@/components/marketplace/FilterSidebar";
-import InfinitePromptList from "@/components/marketplace/InfinitePromptList";
+import { useSuiClient } from "@mysten/dapp-kit";
+import { fetchPrompts, OnChainPrompt } from "@/services/MarketplaceService";
+import { walrusServices } from "@/services/EncryptAndUpload";
+import { TESTNET_MARKETPLACE_ID } from '@/constants';
+
+// prompt metadata type
+type PromptView = OnChainPrompt & { title: string; description: string };
+
+// Component to list on-chain prompts with metadata
+const PromptList: React.FC = () => {
+  const suiClient = useSuiClient();
+  const [prompts, setPrompts] = useState<PromptView[]>([]);
+
+  useEffect(() => {
+    if (!suiClient) return;
+    const fetchAndSet = async () => {
+      try {
+        console.log('PromptList: starting fetch');
+        const onChainPrompts = await fetchPrompts(suiClient, TESTNET_MARKETPLACE_ID);
+        console.log('PromptList: onChainPrompts:', onChainPrompts);
+        const service = walrusServices.find((s) => s.id === 'service1');
+        const combined = await Promise.all(
+          onChainPrompts.map(async (prompt) => {
+            try {
+              const res = await fetch(`${service?.aggregatorUrl}/v1/blobs/${prompt.metadataUri}`);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const meta = await res.json();
+              console.log('PromptList: metadata for', prompt.metadataUri, meta);
+              return { ...prompt, title: meta.title, description: meta.description };
+            } catch (metaErr) {
+              console.error('PromptList: metadata error', prompt.metadataUri, metaErr);
+              return { ...prompt, title: '', description: '' };
+            }
+          })
+        );
+        console.log('PromptList: combined:', combined);
+        setPrompts(combined);
+      } catch (err) {
+        console.error('PromptList: fetch error', err);
+      }
+    };
+    fetchAndSet();
+  }, [suiClient]);
+
+  return (
+    <div>
+      {prompts.map((prompt) => (
+        <div key={prompt.id} className="mb-4">
+          <h2 className="text-lg font-semibold">{prompt.title}</h2>
+          <p className="text-sm text-muted-foreground">{prompt.description}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Marketplace = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,8 +120,8 @@ const Marketplace = () => {
             </div>
           </div>
           <div className="flex-grow">
-        
-            <InfinitePromptList filters={filters} searchQuery={searchQuery} />
+            {/* Fetched on-chain prompts with metadata */}
+            <PromptList />
           </div>
         </div>
       </div>
