@@ -882,7 +882,7 @@ const PromptDetail = () => {
                         </Button>
                       ) : (
                         <Button
-                          onClick={connectWallet}
+                          onClick={() => navigate("/signup")} // Replace connectWallet with navigation
                           disabled={connectingWallet}
                           className="w-full bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-8 py-6 text-md text-white font-light group transition-all duration-300"
                         >

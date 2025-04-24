@@ -25,6 +25,8 @@ export default {
 		extend: {
 			fontFamily: {
 				sans: ['Helvetica', 'Arial', 'sans-serif'],
+				        varela: ['"Varela Round"', 'sans-serif'],
+
 			},
 			colors: {
 				border: 'hsl(var(--border))',
