@@ -32,8 +32,8 @@ export async function listPrompt(
       tx.object(marketplaceId),
       tx.pure.string(metadataUri),
       tx.pure.string(encryptedPromptUri),
-      tx.pure.u64(price * (10**9)),
-      tx.pure.u64(testPrice * (10**9)),
+      tx.pure.u64(Math.floor(price * (10**9))),
+      tx.pure.u64(Math.floor(testPrice * (10**9))),
       // tx.pure(bcs.option(bcs.Address).serialize(null).toBytes()), // no allowlist
     ],
   });

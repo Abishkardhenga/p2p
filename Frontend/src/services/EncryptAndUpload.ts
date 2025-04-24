@@ -160,6 +160,7 @@ export async function handleSubmit(
   capId: string,
   signAndExecute: any,
   currentAddress:any,
+  currentSuiPrice:any
 ): Promise<any> {
   const encoder = new TextEncoder();
   // Inline SEAL encryption & Walrus upload (instead of encryptAndUpload)
@@ -193,8 +194,8 @@ export async function handleSubmit(
     sampleInputs: formData.sampleInputs,
     sampleOutputs: formData.sampleOutputs,
     sampleImages: formData.sampleImages,
-    price: formData.price,
-    testPrice: formData.testPrice,
+    price: (formData.price / currentSuiPrice),
+    testPrice: (formData.testPrice / currentSuiPrice),
   };
   const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
   const uploaded = await uploadPlain(metadataBlob);
@@ -212,8 +213,8 @@ export async function handleSubmit(
     TESTNET_MARKETPLACE_ID,
     metadataUri,
     encryptedPromptUri,
-    formData.price,
-    formData.testPrice,
+    (formData.price / currentSuiPrice),
+    (formData.testPrice / currentSuiPrice),
     signAndExecute,
   );
 }

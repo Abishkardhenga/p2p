@@ -493,7 +493,8 @@ const SellPrompt = () => {
         usedPolicy,
         usedCap,
         signAndExecute,
-        currentAddress
+        currentAddress,
+        currentSuiPrice
       );
 
       toast({
