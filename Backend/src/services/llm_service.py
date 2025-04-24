@@ -27,7 +27,7 @@ class LLMService:
 
         return f"This is a simulated response from model {model} to the query: '{query}'"
     
-    async def test_prompt(self, query: str, llm_model: str, llm_settings: Dict, system_prompt: Optional[str] = None) -> str:
+    async def test_prompt(self, query: str, llm_model: str, llm_settings: Dict, prompt: Optional[str] = None, description: Optional[str] = None) -> str:
         """
         Test a prompt with a specific model and settings.
         
@@ -35,20 +35,27 @@ class LLMService:
             query: The user query to test
             llm_model: The LLM model to use
             llm_settings: Configuration for the LLM call
-            system_prompt: Optional system prompt to use
+            prompt: Optional system prompt to use
         """
-        
-        print(f"\n\n Testing prompt: '{query}' using model: '{llm_model}' with settings: {llm_settings}")
-
-
-        if system_prompt:
+        print(f"fucking prompt:{prompt}")
+        the_prompt=""
+        if prompt:
             # In a real implementation, we would decrypt and use the system prompt
-            print(f"System prompt: {system_prompt}")
-            query = f"{system_prompt}\n user-query: {query}"
+            # print(f"System prompt: {prompt}")
+            the_prompt += f"\n ## prompt: \n {prompt}"
         
+        if description:
+            # In a real implementation, we would decrypt and use the description
+            # print(f"Description: {description}")
+            the_prompt += f"\n## Description: {description}"
+        
+        the_prompt += f"\n## User Query: {query}"
+        
+        print(f"\n\n----- Testing prompt: '{the_prompt}'\n ----- using model: '{llm_model}' with settings: {llm_settings}\n")
+
         if llm_model in self.models['atoma']:
-            # return await self.generate_response(query, llm_model, llm_settings)
-            return await self.atoma_api.query_atoma_async(query, llm_model, llm_settings)
+            # return await self.generate_response(the_prompt, llm_model, llm_settings)
+            return await self.atoma_api.query_atoma_async(the_prompt, llm_model, llm_settings)
 
         # elif llm_model in self.models['openai'] and llm_model in ["dall-e-3", "dall-e-2"]:
         #     # return await self.generate_response(query, llm_model, llm_settings)
@@ -56,17 +63,33 @@ class LLMService:
         
         elif llm_model in self.models['openai']:
             # return await self.generate_response(query, llm_model, llm_settings)
-            return await self.openai_api.query_openai_async(query, llm_model)
+            return await self.openai_api.query_openai_async(the_prompt, llm_model)
         
         # gpt-4o-mini is cheap model so using it as default.
-        return await self.openai_api.query_openai_async(query, DEFAULT_LLM_MODEL, llm_settings)
+        return await self.openai_api.query_openai_async(the_prompt, DEFAULT_LLM_MODEL, llm_settings)
     
-    def generate_image(self, query: str, llm_model: str, llm_settings: Dict, system_prompt: Optional[str] = None) -> str:
-        if system_prompt:
+    '''
+    test_request.query,
+        llm_model,
+        llm_settings,
+        prompt,
+        description
+    '''
+    def generate_image(self, query: str, llm_model: str, llm_settings: Dict, prompt: Optional[str] = None, description: Optional[str] = None) -> str:
+        print(f"got image gen. request:  query:{query}, llm_setting:{llm_settings}, prompt:{prompt}, description:{description}")
+        the_prompt = ""
+        if prompt:
             # In a real implementation, we would decrypt and use the system prompt
-            print(f"System prompt: {system_prompt}")
-            query = f"{system_prompt}\n user-query: {query}"
+            # print(f"System prompt: {prompt}")
+            the_prompt += f"\n## prompt: \n {prompt}"
+        if description:
+            the_prompt += f"\n## description: \n {description}"
+        
+        the_prompt += f"\n## Additional Information: \n {query}"
+        
+        print(f"\n\n----- Testing prompt: '{the_prompt}'\n ----- using model: '{llm_model}' with settings: {llm_settings}\n")
+        # return {}
 
-        return self.openai_api.generate_image(query, llm_model, llm_settings)
+        return self.openai_api.generate_image(the_prompt, llm_model, llm_settings)
 # Create a singleton LLM service instance
 llm_service = LLMService()

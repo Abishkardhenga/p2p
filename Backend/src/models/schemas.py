@@ -34,8 +34,11 @@ class ContentCreate(BaseModel):
     prompt: Optional[str] = None
 
 class ImageContentCreate(BaseModel):
+    content_id: Optional[str] = None
     title: str
+    owner_id: str
     description: str
+    prompt: Optional[str] = None
     llm_model: str = DEFAULT_IMAGE_MODEL
     llm_settings: Dict = DEFAULT_IMAGE_SETTINGS
     price: Union[str, float] = 0.0
@@ -58,6 +61,8 @@ class TestContentRequest(BaseModel):
     llm_settings: Optional[Dict] = DEFAULT_LLM_SETTINGS
     content_id: Optional[str] = None
     user_id: Optional[str] = None
+    prompt: Optional[str] = None
+    description: Optional[str] = None
 
 
 class TestImageRequest(BaseModel):

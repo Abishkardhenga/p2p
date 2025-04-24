@@ -44,9 +44,14 @@ async def add_image_generation_content(content_data: ImageContentCreate):
     metadata = content_data.metadata or {}
     metadata["content_type"] = "image"
     
+    if not content_data.content_id or content_data.content_id == "" or content_data.content_id == "None" or content_data.content_id == "undefined" or content_data.content_id == "null":
+        content_data.content_id = str(uuid.uuid4())
     content = Content(
+        id=content_data.content_id,
         title=content_data.title,
         description=content_data.description,
+        prompt=content_data.prompt,
+        owner_id=content_data.owner_id,
         llm_model=content_data.llm_model,
         llm_settings=content_data.llm_settings,
         price=content_data.price,
@@ -148,7 +153,8 @@ async def test_content(test_request: TestContentRequest):
         # Use content's settings if none provided in request
         llm_settings = content.llm_settings or test_request.llm_settings
         llm_model = content.llm_model
-        system_prompt = content.description
+        prompt = content.prompt
+        description = content.description
     else:
         print(f"* content_id is not given")
         # Use the provided settings for a direct test
@@ -159,7 +165,11 @@ async def test_content(test_request: TestContentRequest):
             )
         llm_settings = test_request.llm_settings
         llm_model = test_request.llm_model or DEFAULT_LLM_MODEL
-        system_prompt = ""
+        if not test_request.description:
+            test_request.description=""
+        prompt=""
+        description=test_request.description
+
     
     print(f"\n\n got request: {test_request}\n query:'{test_request.query}' using model: '{llm_model}' with settings: {llm_settings}")
     # Generate a response using the LLM service
@@ -167,7 +177,8 @@ async def test_content(test_request: TestContentRequest):
         test_request.query, 
         llm_model, 
         llm_settings,
-        system_prompt
+        prompt,
+        description
     )
     
     # If using existing content, we can store test results in metadata
@@ -206,24 +217,29 @@ async def test_image_gen(test_request: TestImageRequest):
             raise HTTPException(status_code=403, detail="User has not purchased this content")
         
         content = db.get_content(test_request.content_id)
+        
+        print(f"the fucking content: {content}")
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
         # Use content's settings if none provided in request
         llm_settings = content.llm_settings or test_request.llm_settings
         llm_model = content.llm_model
-        system_prompt = content.description
+        description = content.description
+        prompt = content.prompt
     else:
         llm_settings = test_request.llm_settings
         llm_model = test_request.llm_model or DEFAULT_IMAGE_MODEL
-        system_prompt = ""
+        description=""
+        prompt=""
     
     # Generate an image using the LLM service
     response = llm_service.generate_image(
-        test_request.query,
-        llm_model,
-        llm_settings,
-        system_prompt
+        query=test_request.query,
+        llm_model=llm_model,
+        llm_settings=llm_settings,
+        prompt=prompt,
+        description=description
     )
     
     return {"response": response}

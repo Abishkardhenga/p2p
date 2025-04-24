@@ -144,6 +144,62 @@ DEFAULT_LLM_SETTINGS = {
 
 ---
 
+## Example data for `test_chat_completion`
+```
+{
+  "query": "also say goodbye in english",
+  "llm_model": "gpt-3.5-turbo",
+  "llm_settings": {
+    "temperature": 0.7,
+    "top_p": 1,
+    "max_tokens": 1024,
+    "frequency_penalty": 0,
+    "presence_penalty": 0
+  },
+  "content_id": "1",
+  "user_id": "1"
+}
+```
+
+```
+{
+  "query": "also say goodbye in english",
+  "llm_model": "gpt-3.5-turbo",
+  "llm_settings": {
+    "temperature": 0.7,
+    "top_p": 1,
+    "max_tokens": 1024,
+    "frequency_penalty": 0,
+    "presence_penalty": 0
+  }
+}
+```
+
+## Example data for `test_image_generation`
+```
+{
+  "query": "add orange strips",
+  "llm_model": "dall-e-2",
+  "llm_settings": {
+    "size": "1024x1024",
+    "n": 1
+  },
+  "content_id": "41e44fb7-f4be-4ff1-8bc1-61f125ceb6a3",
+  "user_id": "1"
+}
+```
+
+```
+{
+  "query": "generate image of scary cat.",
+  "llm_model": "dall-e-2",
+  "llm_settings": {
+    "size": "1024x1024",
+    "n": 1
+  },
+}
+```
+
 ## 🛠️ Development Notes
 
 - Utilizes [Poetry](https://python-poetry.org/docs/) for dependency mangemnt.

@@ -188,7 +188,7 @@ class SQLiteDatabase:
         conn.close()
         
         if result:
-            print(f"\n\n got content: {result}")
+            print(f"\n\n got fucking content: {result}")
             return Content(
                 id=result[0],
                 owner_id=result[1],
@@ -210,7 +210,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata
+                   price, system_prompt, metadata, prompt
             FROM content WHERE owner_id = ?
             """,
             (owner_id,)
@@ -232,7 +232,8 @@ class SQLiteDatabase:
                 llm_settings=json.loads(result[5]),
                 price=result[6],
                 system_prompt=result[7],
-                metadata=json.loads(result[8]) if result[8] else None
+                metadata=json.loads(result[8]) if result[8] else None,
+                prompt=result[9] if result[9] else None
             ))
         
         return content_list
