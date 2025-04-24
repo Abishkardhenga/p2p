@@ -33,6 +33,7 @@ const PromptCard = ({
   imageUrl,
 }: PromptCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  console.log(imageUrl)
 
   const formattedPrice = new Intl.NumberFormat('en-US', {
     style: 'currency',
