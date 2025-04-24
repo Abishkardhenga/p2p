@@ -178,7 +178,7 @@ class SQLiteDatabase:
         
         cursor.execute(
             """
-            SELECT id, title, description, llm_model, llm_settings,
+            SELECT id, owner_id, title, description, llm_model, llm_settings,
                    price, system_prompt, metadata
             FROM content WHERE id = ?
             """, 
@@ -189,15 +189,17 @@ class SQLiteDatabase:
         conn.close()
         
         if result:
+            print(f"\n\n got content: {result}")
             return Content(
                 id=result[0],
-                title=result[1],
-                description=result[2],
-                llm_model=result[3],
-                llm_settings=json.loads(result[4]),
-                price=result[5],
-                system_prompt=result[6],
-                metadata=json.loads(result[7]) if result[7] else None
+                owner_id=result[1],
+                title=result[2],
+                description=result[3],
+                llm_model=result[4],
+                llm_settings=json.loads(result[5]),
+                price=result[6],
+                system_prompt=result[7],
+                metadata=json.loads(result[8]) if result[8] else None
             )
         return None
     

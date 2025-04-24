@@ -84,6 +84,7 @@ async def purchase_content(purchase_data: Purchase):
     """
     Record a purchase of content
     """
+    print(f"\n\n\npurchasing product: {purchase_data}")
     # Validate that the content and user exist
     content = db.get_content(purchase_data.content_id)
     if not content:
