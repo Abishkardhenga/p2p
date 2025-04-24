@@ -36,6 +36,7 @@ import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useNetworkVariable } from "@/configs/networkConfig";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import {TESTNET_MARKETPLACE_ID, TESTNET_PACKAGE_ID} from '@/constants'
+import { Transaction } from '@mysten/sui/transactions';
 
 const SellPrompt = () => {
   const navigate = useNavigate()
@@ -49,7 +50,10 @@ const SellPrompt = () => {
       await suiClient.executeTransactionBlock({
         transactionBlock: bytes,
         signature,
-        options: { showRawEffects: true, showEffects: true },
+        options: {
+          showRawEffects: true,
+          showEffects: true,
+        },
       }),
   });
 
@@ -75,46 +79,62 @@ const SellPrompt = () => {
 
   // Determine SEAL policy object (allowlist cap) from owned caps
   const currentAccount = useCurrentAccount();
-  const [capId, setInnerCapId] = useState<string>("")
+  const [capId, setInnerCapId] = useState<string>("");
+  const [policyObject, setPolicyObject] = useState<string>("");
   const [allowlist, setAllowlist] = useState({ id: "", name: "", list: [] });
-  const [recipientAllowlist, setRecipientAllowlist] = useState("");
-  const [id, setId] = useState(TESTNET_MARKETPLACE_ID);
 
   useEffect(() => {
     if (!currentAccount?.address) return;  // skip until account is available
+    console.log(currentAccount.address)
     async function getAllowlist() {
-      // load all caps
+      try{
+        if (!packageId) return;
+         // Retrieve owned Cap objects for allowlist
       const res = await suiClient.getOwnedObjects({
-        owner: currentAccount?.address!,
+        owner: currentAccount.address,
         options: { showContent: true, showType: true },
-        filter: { StructType: `${packageId}::allowlist::Cap` },
+        filter: { StructType: `${TESTNET_PACKAGE_ID}::walrus::ai_marketplace::Cap` },
       });
 
-      // find the cap for the given allowlist id
-      const capId = res.data
-        .map((obj) => {
-          const fields = (obj!.data!.content as { fields: any }).fields;
-          return {
-            id: fields?.id.id,
-            allowlist_id: fields?.allowlist_id,
-          };
-        })
-        .filter((item) => item.allowlist_id === id)
-        .map((item) => item.id) as string[];
-      setInnerCapId(capId[0]);
+      console.log("res 93",res)
 
-      // load the allowlist for the given id
-      const allowlist = await suiClient.getObject({
-        id: id!,
-        options: { showContent: true },
+      // Extract cap and policy (allowlist object) IDs
+      const items = res.data.map((obj) => {
+        const fields = (obj!.data!.content as { fields: any }).fields;
+        return {
+          capId: fields.id.id,
+          policyObjectId: fields.allowlist_id,
+        };
       });
-      const fields = (allowlist.data?.content as { fields: any })?.fields || {};
-      setAllowlist({
-        id: id!,
-        name: fields.name,
-        list: fields.list,
-      });
-      setRecipientAllowlist(id!);
+      if (items.length > 0) {
+        const { capId: cap, policyObjectId: policy } = items[0];
+        setInnerCapId(cap);
+        setPolicyObject(policy);
+        // load the allowlist metadata
+        const allowlistObj = await suiClient.getObject({
+          id: policy,
+          options: { showContent: true },
+        });
+        const f = (allowlistObj.data?.content as { fields: any })?.fields || {};
+        setAllowlist({ id: policy, name: f.name, list: f.list });
+      } else {
+        // create new allowlist and cap for testing
+        const tx = new Transaction()
+        tx.setGasBudget(10000000);
+        const txResult: any = await new Promise((resolve, reject) => {
+          signAndExecute({ transaction: tx }, { onSuccess: resolve, onError: reject });
+        });
+        const created = txResult.effects?.created || [];
+        const newAllowlistId = created[0]?.objectId;
+        const newCapId = created[1]?.objectId;
+        setInnerCapId(newCapId);
+        setPolicyObject(newAllowlistId);
+        setAllowlist({ id: newAllowlistId, name: 'test', list: [] });
+      }
+      }
+     catch(e){
+      console.log("error", e);
+     }
     }
 
     // Call getAllowlist immediately
@@ -127,7 +147,7 @@ const SellPrompt = () => {
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
-  }, [id, currentAccount?.address]);
+  }, [currentAccount?.address, packageId]);
 
   const [showAIModel, setShowAiModel] = useState(false)
   const [modelSettings, setModelSettings] = useState({
@@ -177,7 +197,7 @@ const SellPrompt = () => {
           },
         })
 
-        console.log("response", data)
+        // console.log("response", data)
         const latestprice = data.prices
         console.log("latestprice", latestprice[0][1])
 
@@ -368,6 +388,7 @@ const SellPrompt = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("checking.." ,policyObject, capId)
 
     // Basic validation
     if (
@@ -436,12 +457,44 @@ const SellPrompt = () => {
         return
       }
 
+      let usedPolicy = policyObject;
+      let usedCap = capId;
+      if (!usedPolicy || !usedCap) {
+        const tx2 = new Transaction()
+        const newAllowlist = tx2.moveCall({
+          target: `${TESTNET_PACKAGE_ID}::ai_marketplace::create_allowlist`,
+          typeArguments: [],
+          arguments: [
+            tx2.object(TESTNET_MARKETPLACE_ID),
+            tx2.pure.string("default"),
+          ],
+        });
+        console.log(newAllowlist)
+        const newCap = tx2.moveCall({
+          target: `${TESTNET_PACKAGE_ID}::ai_marketplace::new_cap_for_testing`,
+          typeArguments: [],
+          arguments: [newAllowlist],
+        });
+        console.log("New cap",newCap)
+        tx2.setGasBudget(10000000);
+        const res2: any = await new Promise((res, rej) =>
+          signAndExecute({ transaction: tx2 }, { onSuccess: res, onError: rej })
+        );
+        console.log(res2)
+        const created = res2.effects?.created || [];
+        usedPolicy = created[0]?.objectId;
+        usedCap = created[1]?.objectId;
+        console.log("policy and cap", usedPolicy, usedCap)
+        setPolicyObject(usedPolicy);
+        setInnerCapId(usedCap);
+      }
+      // proceed with submission
       await submitPrompt(
         formData as PromptFormData,
         suiClient,
         TESTNET_PACKAGE_ID,
-        allowlist.id,
-        capId,
+        usedPolicy,
+        usedCap,
         signAndExecute
       );
 

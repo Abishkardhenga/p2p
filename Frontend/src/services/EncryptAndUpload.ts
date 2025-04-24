@@ -1,4 +1,4 @@
-import { Transaction } from '@mysten/sui/transactions';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { getAllowlistedKeyServers, SealClient } from '@mysten/seal';
 import { fromHex, toHex } from '@mysten/sui/utils';
 import { listPrompt } from './MarketplaceService';
@@ -61,7 +61,14 @@ async function storeBlob(
   if (res.status !== 200) {
     throw new Error('Failed to upload blob to Walrus');
   }
-  return await res.json();
+  const json = await res.json();
+  // Extract blobId from response (v1 nested or top-level)
+  const blobId = (json as any).blobId || (json as any).newlyCreated?.blobObject?.blobId;
+  if (!blobId) {
+    console.error('storeBlob: missing blobId in response', json);
+    throw new Error('storeBlob: could not extract blobId');
+  }
+  return { ...(json as any), blobId } as Data;
 }
 
 /**
@@ -74,24 +81,45 @@ export async function publishToSui(
   packageId: string,
   signAndExecute: any
 ): Promise<any> {
-  const tx = new Transaction();
+  // Ensure required params
+  if (!policyObject || !capId || !blobId || !packageId) {
+    console.error('publishToSui: missing parameters', { policyObject, capId, blobId, packageId });
+    return;
+  }
+  try {
+    const tx = new TransactionBlock();
     tx.moveCall({
-      target: `${packageId}::ai_marketplace::publish`,
-      arguments: [tx.object(policyObject), tx.object(capId), tx.pure.string(blobId)],
+      target: `${packageId}::walrus::ai_marketplace::publish`,
+      typeArguments: [],
+      // Pass blobId as pure string for Move String
+      arguments: [
+        tx.object(policyObject),
+        tx.object(capId),
+        tx.pure(blobId, 'string'),
+      ],
     });
 
     tx.setGasBudget(10000000);
-    signAndExecute(
-      {
-        transaction: tx,
-      },
-      {
-        onSuccess: async (result) => {
-          console.log('res', result);
-          alert('Blob attached successfully, now share the link or upload more.');
-        },
-      },
-    );
+    // Execute transaction and return a promise
+    return await new Promise((resolve, reject) => {
+      signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            console.log('publishToSui success', result);
+            resolve(result);
+          },
+          onError: (error: any) => {
+            console.error('publishToSui error callback', error);
+            reject(error);
+          },
+        }
+      );
+    });
+  } catch (err: any) {
+    console.error('publishToSui exception', err);
+    throw err;
+  }
 }
 
 // ---- Unified prompt submission (migrated from PromptService) ----
@@ -138,9 +166,13 @@ export async function handleSubmit(
   const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
   const result = await client.encrypt({ id, packageId, threshold: NUM_EPOCH, data: encoder.encode(formData.systemPrompt) });
   const infoEncrypted = await storeBlob(result.encryptedObject, 'service1');
+  console.log('handleSubmit: storeBlob encrypted info', infoEncrypted, 'policyObject', policyObject, 'capId', capId);
   const encryptedPromptUri = infoEncrypted.blobId;
-
-  publishToSui(policyObject, capId, encryptedPromptUri, packageId, signAndExecute)
+  console.log('handleSubmit: encryptedPromptUri', encryptedPromptUri);
+  // Ensure encrypted URI exists
+  if (!encryptedPromptUri) throw new Error('handleSubmit: missing encryptedPromptUri');
+  // Publish encrypted blob on-chain
+  await publishToSui(policyObject, capId, encryptedPromptUri, packageId, signAndExecute);
 
   const metadata = {
     title: formData.title,
@@ -159,9 +191,13 @@ export async function handleSubmit(
   };
   const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
   const uploaded = await uploadPlain(metadataBlob);
+  console.log('handleSubmit: uploadPlain metadata result', uploaded);
   const metadataUri = uploaded.blobId;
-
-  publishToSui(policyObject, capId, metadataUri, packageId, signAndExecute)
+  console.log('handleSubmit: metadataUri', metadataUri);
+  // Ensure metadata URI exists
+  if (!metadataUri) throw new Error('handleSubmit: missing metadataUri');
+  // Publish metadata blob on-chain
+  await publishToSui(policyObject, capId, metadataUri, packageId, signAndExecute);
 
   return listPrompt(
     suiClient,

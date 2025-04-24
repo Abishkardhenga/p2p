@@ -100,14 +100,11 @@ module walrus::ai_marketplace {
         allowlist_id: ID,
     }
 
-    ///////////////////////// Initialization ////////////////////////////
-
-    /// Initialize a new marketplace with the given owner and default platform fee
-    public fun init_marketplace(ctx: &mut TxContext): Marketplace {
+    fun init(ctx: &mut TxContext){
         let id = object::new(ctx);
         let owner = tx_context::sender(ctx);
         
-        Marketplace { 
+        let market_place = Marketplace { 
             id,
             owner,
             platform_fee_bps: 200,
@@ -116,13 +113,15 @@ module walrus::ai_marketplace {
             deposits: table::new(ctx),
             allowlists: table::new(ctx),
             prompt_ids: vector::empty(),
-        }
+        };
+
+        transfer::share_object(market_place);
+
     }
 
-    public entry fun create_and_share_marketplace(ctx: &mut TxContext) {
-        let marketplace = init_marketplace(ctx);
-        transfer::share_object(marketplace);
-    }
+    ///////////////////////// Initialization ////////////////////////////
+
+    /// Initialize a new marketplace with the given owner and default platform fee_amount
 
     ///////////////////////// Prompt Listing ////////////////////////////
 

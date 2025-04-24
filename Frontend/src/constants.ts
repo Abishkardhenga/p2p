@@ -4,7 +4,7 @@
 export const DEVNET_PACKAGE_ID = '0xTODO';
 export const DEVNET_MARKETPLACE_ID = '0xTODO'; // Local devnet marketplace instance ID
 export const TESTNET_PACKAGE_ID =
-  '0x3cf4a3e7dfa130e6866fcca388b0f1c8c996091522d48b07a0e86ebce263f56b'; // AI marketplace package id
-export const TESTNET_MARKETPLACE_ID = '0xc1eacd2027e68c2c25b2ed1bce9d4ebf5974ef3c4829c1d78bf396ec9241ce6b'; // Testnet marketplace instance ID
+  '0x95cc531972e76e9b920097267c5c66fc2b5c87fe643d884070f8d21bf0634bf3'; // AI marketplace package id
+export const TESTNET_MARKETPLACE_ID = '0x65d56d1e10c062a827bda2beb0f24754fd0f197b89544bea2da2638ec28a77c1'; // Testnet marketplace instance ID
 export const MAINNET_PACKAGE_ID = '0xTODO';
 export const MAINNET_MARKETPLACE_ID = '0xTODO'; // Mainnet marketplace instance ID
