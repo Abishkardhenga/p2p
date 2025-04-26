@@ -131,7 +131,6 @@ module walrus::ai_marketplace {
         encrypted_prompt_uri: vector<u8>,
         price: u64,
         test_price: u64,
-        allowlist_id: Option<ID>,
         ctx: &mut TxContext
     ) {
         let owner = tx_context::sender(ctx);
@@ -145,7 +144,7 @@ module walrus::ai_marketplace {
             encrypted_prompt_uri: utf8(encrypted_prompt_uri),
             price,
             test_price,
-            allowlist_id,
+            allowlist_id: option::none(),
             is_active: true,
             created_at: tx_context::epoch(ctx),
             purchases: 0,
@@ -481,9 +480,10 @@ module walrus::ai_marketplace {
         assert!(approve_internal(tx_context::sender(ctx), id, allowlist), ENoAccess);
     }
 
-    public fun publish(allowlist: &mut Allowlist, cap: &Cap, blob_id: String) {
-        assert!(cap.allowlist_id == object::id(allowlist), EInvalidCap);
-        df::add(&mut allowlist.id, blob_id, MARKER);
+    public fun publish(marketplace: &mut Marketplace, lid: ID, cap: ID, blob_id: String, recipient: address) {
+        let allowlist =table::borrow_mut(&mut marketplace.allowlists, lid);
+        assert!(cap == object::id(allowlist), EInvalidCap);
+        allowlist.list.push_back(recipient);
     }
 
     ///////////////////////// View Helpers (for off-chain) ////////////////////////////
