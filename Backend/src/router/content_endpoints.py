@@ -11,7 +11,7 @@ from services.llm_service import llm_service
 router = APIRouter(prefix="/content", tags=["content"])
 
 @router.post("/add", response_model=Content)
-async def add_content(content_data: ContentCreate):
+async def create_prompt(content_data: ContentCreate):
     """
     Add new content to the marketplace (text completion, image generation, etc.)
     """
@@ -37,7 +37,7 @@ async def add_content(content_data: ContentCreate):
     return saved_content
 
 @router.post("/search", response_model=SearchResult)
-async def search_content(search_query: SearchQuery):
+async def search_prompt(search_query: SearchQuery):
     """
     Search for content by title and description
     """
@@ -47,7 +47,7 @@ async def search_content(search_query: SearchQuery):
     return SearchResult(results=results)
 
 @router.get("/{content_id}", response_model=Content)
-async def get_content(content_id: str):
+async def get_prompt(content_id: str):
     """
     Get content details by ID
     """
@@ -57,7 +57,7 @@ async def get_content(content_id: str):
     return content
 
 @router.get("/owner/{owner_id}", response_model=List[Content])
-async def get_content_by_owner(owner_id: str):
+async def get_prompt_by_owner(owner_id: str):
     """
     Get content created by a specific owner
     """
