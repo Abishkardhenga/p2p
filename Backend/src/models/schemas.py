@@ -64,8 +64,6 @@ class TestContentRequest(BaseModel):
     llm_settings: Optional[Dict] = DEFAULT_LLM_SETTINGS
     content_id: Optional[str] = None
     user_id: Optional[str] = None
-    prompt: Optional[str] = None
-    description: Optional[str] = None
 
 
 class TestImageRequest(BaseModel):

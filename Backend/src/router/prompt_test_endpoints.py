@@ -36,20 +36,21 @@ async def test_content(test_request: TestContentRequest):
         prompt = content.prompt
         description = content.description
     else:
-        print(f"* content_id is not given")
-        # Use the provided settings for a direct test
-        if not test_request.llm_settings:
-            raise HTTPException(
-                status_code=400, 
-                detail="Either content_id or llm_settings must be provided"
-            )
-        llm_settings = test_request.llm_settings
-        llm_model = test_request.llm_model or DEFAULT_LLM_MODEL
-        if not test_request.description:
-            test_request.description=""
-        prompt=""
-        description=test_request.description
-
+        raise HTTPException(status_code=400, detail="Content ID is required")
+        # print(f"* content_id is not given")
+        # # Use the provided settings for a direct test
+        # if not test_request.llm_settings:
+        #     raise HTTPException(
+        #         status_code=400, 
+        #         detail="Either content_id or llm_settings must be provided"
+        #     )
+        # llm_settings = test_request.llm_settings
+        # llm_model = test_request.llm_model or DEFAULT_LLM_MODEL
+        # if not test_request.description:
+        #     test_request.description=""
+        # prompt=""
+        # description=test_request.description
+    
     print(f"\n\n got request: {test_request}\n query:'{test_request.query}' using model: '{llm_model}' with settings: {llm_settings}")
     
     # Generate a response using the LLM service
@@ -104,10 +105,12 @@ async def test_image_gen(test_request: TestImageRequest):
         description = content.description
         prompt = content.prompt
     else:
-        llm_settings = test_request.llm_settings
-        llm_model = test_request.llm_model or DEFAULT_IMAGE_MODEL
-        description=""
-        prompt=""
+        raise HTTPException(status_code=400, detail="Content ID is required")
+        
+        # llm_settings = test_request.llm_settings
+        # llm_model = test_request.llm_model or DEFAULT_IMAGE_MODEL
+        # description=""
+        # prompt=""
     
     # Generate an image using the LLM service
     response = llm_service.generate_image(
