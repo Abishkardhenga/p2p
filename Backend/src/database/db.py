@@ -189,7 +189,7 @@ class SQLiteDatabase:
         conn.close()
         
         if result:
-            print(f"\n\n got fucking content: {result}")
+            print(f"\n\n got content: {result}")
             return Content(
                 id=result[0],
                 owner_id=result[1],
@@ -238,6 +238,25 @@ class SQLiteDatabase:
             ))
         
         return content_list
+
+    def get_total_sales_by_owner(self, owner_id: str) -> int:
+        """Get total number of purchases for all content owned by a user"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """
+            SELECT COUNT(p.id)
+            FROM purchases p
+            JOIN content c ON p.content_id = c.id
+            WHERE c.owner_id = ?
+            """,
+            (owner_id,)
+        )
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result[0] if result else 0
     def get_n_items(self, n: int) -> List[Content]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -287,7 +306,7 @@ class SQLiteDatabase:
             (search_param, search_param)
         )
         results = cursor.fetchall()
-        print(f"\n\nfucking raw search result: {results}")
+        print(f"\n\n raw search result: {results}")
         conn.close()
         
         content_list = []

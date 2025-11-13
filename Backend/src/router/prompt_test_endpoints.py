@@ -6,6 +6,8 @@ from database.db import db
 from services.llm_service import llm_service
 from constants import DEFAULT_LLM_MODEL, DEFAULT_IMAGE_MODEL
 
+from src.constants import ALLOW_UNPURCHASED_PROMPTS_TESTING
+
 router = APIRouter(prefix="/test", tags=["testing"])
 
 @router.post("/chat_completion", response_model=Dict)
@@ -19,12 +21,14 @@ async def test_content(test_request: TestContentRequest):
         if not test_request.user_id:
             raise HTTPException(status_code=400, detail="User ID is required")
         
-        # Check if the user has purchased the content
-        purchase = db.get_purchases_by_user(test_request.user_id)
-        has_purchased = any(p.content_id == test_request.content_id for p in purchase)
+        print(f"\n\n ALLOW_UNPURCHASED_PROMPTS_TESTING : {ALLOW_UNPURCHASED_PROMPTS_TESTING}")
+        if not ALLOW_UNPURCHASED_PROMPTS_TESTING:
+            # Check if the user has purchased the content
+            purchase = db.get_purchases_by_user(test_request.user_id)
+            has_purchased = any(p.content_id == test_request.content_id for p in purchase)
 
-        if not has_purchased: 
-            raise HTTPException(status_code=403, detail="User has not purchased this content")
+            if not has_purchased: 
+                raise HTTPException(status_code=403, detail="User has not purchased this content")
         
         content = db.get_content(test_request.content_id)
         if not content:
@@ -86,16 +90,18 @@ async def test_image_gen(test_request: TestImageRequest):
     print(f"\n\n got request: {test_request}\n query:'{test_request.query}' using model: '{test_request.llm_model}' with settings: {test_request.llm_settings}")
     
     if test_request.content_id:
-        # Check if the user has purchased the content
-        purchase = db.get_purchases_by_user(test_request.user_id)
-        has_purchased = any(p.content_id == test_request.content_id for p in purchase)
         
-        if not has_purchased:
-            raise HTTPException(status_code=403, detail="User has not purchased this content")
+        if not ALLOW_UNPURCHASED_PROMPTS_TESTING:
+            # Check if the user has purchased the content
+            purchase = db.get_purchases_by_user(test_request.user_id)
+            has_purchased = any(p.content_id == test_request.content_id for p in purchase)
+            
+            if not has_purchased:
+                raise HTTPException(status_code=403, detail="User has not purchased this content")
         
         content = db.get_content(test_request.content_id)
         
-        print(f"the fucking content: {content}")
+        print(f"the  content: {content}")
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         

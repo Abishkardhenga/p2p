@@ -3,17 +3,20 @@ from typing import List
 import uuid
 
 from models.schemas import (
-    Content, ContentCreate, SearchQuery, SearchResult
+    Content, ContentCreate, ImageContentCreate, SearchQuery, SearchResult
 )
 from database.db import db
 from services.llm_service import llm_service
 
 router = APIRouter(prefix="/content", tags=["content"])
+legacy_router = APIRouter(prefix="/content", tags=["legacy"])
 
 @router.post("/add", response_model=Content)
 async def create_prompt(content_data: ContentCreate):
     """
     Add new content to the marketplace (text completion, image generation, etc.)
+    
+    note: metadata["content_type"] is either "image" or "text"
     """
     print(f"\n\n add_content: owner_id: {content_data.owner_id}")
     
@@ -46,6 +49,14 @@ async def search_prompt(search_query: SearchQuery):
     print(f"results: {results}")
     return SearchResult(results=results)
 
+@router.get("/models", response_model=dict)
+async def list_model_names():
+    """
+    List available OpenAI and Atoma model names
+    """
+    print('list_model_names: ', llm_service.models)
+    return llm_service.models
+
 @router.get("/{content_id}", response_model=Content)
 async def get_prompt(content_id: str):
     """
@@ -71,10 +82,30 @@ async def get_n_items(n: int):
     """
     return db.get_n_items(n)
 
-@router.get("/models", response_model=dict)
-async def list_model_names():
-    """
-    List available OpenAI and Atoma model names
-    """
-    print('list_model_names: ', llm_service.models)
-    return llm_service.models
+
+# Legacy endpoints
+@legacy_router.post("/add_image_generation", response_model=Content)
+async def add_image_generation_content(content_data: ImageContentCreate):
+    """Add new image generation content to the marketplace"""
+    # We can mark this content as image-related in metadata
+    metadata = content_data.metadata or {}
+    metadata["content_type"] = "image"
+    
+    if not content_data.content_id or content_data.content_id == "" or content_data.content_id == "None" or content_data.content_id == "undefined" or content_data.content_id == "null":
+        content_data.content_id = str(uuid.uuid4())
+    
+    content = Content(
+        id=content_data.content_id,
+        owner_id=content_data.owner_id,
+        title=content_data.title,
+        description=content_data.description,
+        llm_model=content_data.llm_model,
+        llm_settings=content_data.llm_settings,
+        price=content_data.price,
+        metadata=metadata,
+        prompt=content_data.prompt,
+        preview_url=content_data.preview_url
+    )
+    
+    saved_content = db.add_content(content)
+    return saved_content

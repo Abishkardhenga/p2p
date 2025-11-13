@@ -25,8 +25,4 @@ async def get_total_sold_by_user(user_id: str):
     """
     Get total number of sales for all content owned by a user
     """
-    content_list = db.get_content_by_owner(user_id)
-    total_sold = 0
-    for content in content_list:
-        total_sold += len(db.get_purchases_by_content(content.id))
-    return total_sold
+    return db.get_total_sales_by_owner(user_id)

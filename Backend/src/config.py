@@ -23,6 +23,8 @@ class Config:
                 "USE_SQLITE": os.environ.get("USE_SQLITE", "False").lower() in ('true', '1', 't'),
                 "SQLITE_DB_PATH": os.environ.get('SQLITE_DB_PATH', 'prompt_market.db'),
                 "DEFAULT_IMAGE_MODEL": os.environ.get("DEFAULT_IMAGE_MODEL", "dall-e-2"),
+                "ALLOW_UNPURCHASED_PROMPTS_TESTING": os.environ.get("ALLOW_UNPURCHASED_PROMPTS_TESTING", "true").lower() == "true",
+                "SHOW_ATOMA_MODELS": os.environ.get("SHOW_ATOMA_MODELS", "false").lower() == "true"
             }
             return default_config
         except Exception as e:

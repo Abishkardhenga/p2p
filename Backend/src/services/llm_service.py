@@ -2,19 +2,22 @@ from typing import Dict, Optional
 from services.atoma.atoma_api import AtomaAPI
 from services.openai.openai_api import OpenaiAPI
 
-from constants import DEFAULT_LLM_MODEL, DEFAULT_LLM_SETTINGS
+from constants import DEFAULT_LLM_MODEL, DEFAULT_LLM_SETTINGS, SHOW_ATOMA_MODELS
 
 class LLMService:
     def __init__(self):
         # This is a placeholder for a real LLM service integration
-        self.atoma_api = AtomaAPI()
         self.openai_api = OpenaiAPI()
 
         self.models = {
-            'atoma': self.atoma_api.models_list,
-            'openai': self.openai_api.models_list
+           'openai': self.openai_api.models_list
         }
-    
+   
+        if SHOW_ATOMA_MODELS:
+            self.atoma_api = AtomaAPI()
+            
+            self.models['atoma'] = self.atoma_api.models_list
+     
     async def generate_response(self, query: str, model: str, settings: Dict) -> str:
         """
         Generate a response using an LLM model.
@@ -37,7 +40,7 @@ class LLMService:
             llm_settings: Configuration for the LLM call
             prompt: Optional system prompt to use
         """
-        print(f"fucking prompt:{prompt}")
+        print(f" prompt:{prompt}")
         the_prompt=""
         if prompt:
             # In a real implementation, we would decrypt and use the system prompt
@@ -91,5 +94,6 @@ class LLMService:
         # return {}
 
         return self.openai_api.generate_image(the_prompt, llm_model, llm_settings)
+
 # Create a singleton LLM service instance
 llm_service = LLMService()

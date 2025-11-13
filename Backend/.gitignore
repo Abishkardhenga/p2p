@@ -128,3 +128,6 @@ dmypy.json
 
 # Database
 *.sqlite3
+**.db
+
+**.vscode

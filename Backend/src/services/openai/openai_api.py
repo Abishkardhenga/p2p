@@ -1,4 +1,5 @@
 import requests
+import inspect
 
 from dotenv import load_dotenv
 import os
@@ -43,13 +44,18 @@ class OpenaiAPI:
         print(f"openai: query: {query}, model_name: {model_name}, llm_settings: {llm_settings}")
         try:
             print(f'one of gpt models. using {model_name} model')
+            
+            # Filter llm_settings to only include valid parameters for chat.completions.create
+            valid_params = set(inspect.signature(self.openai_client.chat.completions.create).parameters.keys())
+            filtered_settings = {k: v for k, v in (llm_settings or {}).items() if k in valid_params}
+            
             completion = self.openai_client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": query}
                 ],
-                **(llm_settings or {})
+                **filtered_settings
             )
             # print(completion.choices[0].message.content)
             return completion.choices[0].message.content
@@ -58,15 +64,20 @@ class OpenaiAPI:
     
     def generate_image(self, prompt="A white siamese cat", model_name=DEFAULT_IMAGE_MODEL, llm_settings=DEFAULT_IMAGE_SETTINGS):
         '''
-    
+        
         '''
         print(f"openai: prompt: {prompt}, model_name: {model_name}, llm_settings: {llm_settings}")
         try:
             print(f'Using model: {model_name}')
+            
+            # Filter llm_settings to only include valid parameters for images.generate
+            valid_params = set(inspect.signature(self.openai_client.images.generate).parameters.keys())
+            filtered_settings = {k: v for k, v in (llm_settings or {}).items() if k in valid_params}
+            
             response = self.openai_client.images.generate(
                 model=model_name,
                 prompt=prompt,
-                **(llm_settings or {})
+                **filtered_settings
             )
             return response.data[0].url
         except requests.RequestException as e:
@@ -76,13 +87,18 @@ class OpenaiAPI:
         print(f"openai: query: {query}, model_name: {model_name}, llm_settings: {llm_settings}")
         try:
             print(f'Using model: {model_name}')
+            
+            # Filter llm_settings to only include valid parameters for chat.completions.create
+            valid_params = set(inspect.signature(self.openai_client_async.chat.completions.create).parameters.keys())
+            filtered_settings = {k: v for k, v in (llm_settings or {}).items() if k in valid_params}
+            
             completion = await self.openai_client_async.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": query}
                 ],
-                **(llm_settings or {})
+                **filtered_settings
             )
             # print(completion.choices[0].message.content)
             return completion.choices[0].message.content

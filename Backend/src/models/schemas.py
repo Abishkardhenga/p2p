@@ -2,6 +2,11 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Union, Optional
 from constants import DEFAULT_LLM_MODEL, DEFAULT_LLM_SETTINGS, DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_SETTINGS
 
+from enum import Enum
+
+class PromptType(str, Enum):
+    IMAGE = "image"
+    TEXT = "text"
 
 class User(BaseModel):
     id: Optional[str] = None
@@ -30,7 +35,7 @@ class ContentCreate(BaseModel):
     llm_model: str = DEFAULT_LLM_MODEL
     llm_settings: Dict = DEFAULT_LLM_SETTINGS
     price: Union[str, float] = 0.0
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict] = {"content_type": PromptType.TEXT} # image or text
     prompt: Optional[str] = None
     preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
 
