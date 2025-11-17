@@ -26,6 +26,7 @@ import {
   Wallet,
   User,
   CreditCard,
+  RefreshCw,
 } from "lucide-react"
 import StatCard from "@/components/dashboard/stats/StatCard"
 import ActivityItem from "@/components/dashboard/ActivityItem"
@@ -35,11 +36,15 @@ import Footer from "@/components/layout/Footer"
 import Navbar from "@/components/layout/Navbar"
 import { useZKLogin } from "react-sui-zk-login-kit"
 import { useCurrentAccount } from "@mysten/dapp-kit"
+import { useDashboardData } from "@/hooks/useDashboardData"
 
 const Dashboard = () => {
   const [tab, setTab] = useState("overview")
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
   const account = useCurrentAccount()
+  
+  // Fetch dashboard data from backend
+  const { uploadedPrompts, purchasedPrompts, loading, error, refetch } = useDashboardData(address)
 
   // Mock function for purchasing credits
   const handlePurchaseCredits = () => {
@@ -59,73 +64,14 @@ const Dashboard = () => {
     }, 2000)
   }
 
-  // Mock data for purchased prompts
-  const purchasedPrompts = [
-    {
-      id: "1",
-      title: "SEO Blog Post Generator",
-      category: "Content Creation",
-      author: "Alex Chen",
-      price: "$19.99",
-      date: "2025-03-15",
-      image:
-        "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "2",
-      title: "Social Media Campaign Planner",
-      category: "Marketing",
-      author: "Sarah Johnson",
-      price: "$14.99",
-      date: "2025-03-10",
-      image:
-        "https://images.unsplash.com/photo-1611162616475-46b635cb6868?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "3",
-      title: "Product Description Writer",
-      category: "Copywriting",
-      author: "Michael Lee",
-      price: "$9.99",
-      date: "2025-03-05",
-      image:
-        "https://images.unsplash.com/photo-1586892477838-2b96e85e0f96?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    },
-  ]
-
-  // Mock data for uploaded prompts
-  const uploadedPrompts = [
-    {
-      id: "1",
-      title: "Technical Documentation Writer",
-      category: "Technical",
-      sales: 2,
-      revenue: "$59.98",
-      status: "Active",
-      image:
-        "https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "2",
-      title: "Email Composer Professional",
-      category: "Copywriting",
-      sales: 1,
-      revenue: "$9.99",
-      status: "Active",
-      image:
-        "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "3",
-      title: "Social Media Caption Generator",
-      category: "Marketing",
-      sales: 0,
-      revenue: "$0.00",
-      status: "Draft",
-      image:
-        "https://images.unsplash.com/photo-1611605698335-8b1569810432?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    },
-  ]
+  // Calculate stats from real data
+  const totalUploads = uploadedPrompts.filter(p => !p.isDefault).length
+  const totalPurchases = purchasedPrompts.filter(p => !p.isDefault).length
+  const totalSales = uploadedPrompts.reduce((sum, p) => sum + (p.sales || 0), 0)
+  const totalRevenue = uploadedPrompts.reduce((sum, p) => {
+    const revenue = parseFloat(p.revenue?.replace('$', '') || '0')
+    return sum + revenue
+  }, 0)
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -242,9 +188,9 @@ const Dashboard = () => {
                 <StatCard
                   title="Total Purchases"
                   value={purchasedPrompts.length}
-                  description="Prompts you've bought"
+                  description={`${totalPurchases} from marketplace`}
                   icon={<ShoppingCart className="h-4 w-4" />}
-                  trend={{ value: "2", positive: true }}
+                  trend={totalPurchases > 0 ? { value: `${totalPurchases}`, positive: true } : undefined}
                 />
                 <StatCard
                   title="Total Credits"
@@ -253,18 +199,18 @@ const Dashboard = () => {
                   icon={<DollarSign className="h-4 w-4" />}
                 />
                 <StatCard
-                  title="Prompts Sold"
-                  value={3}
-                  description="Across 2 listings"
+                  title="Prompts Uploaded"
+                  value={uploadedPrompts.length}
+                  description={`${totalUploads} active listings`}
                   icon={<PenTool className="h-4 w-4" />}
-                  trend={{ value: "1", positive: true }}
+                  trend={totalUploads > 0 ? { value: `${totalUploads}`, positive: true } : undefined}
                 />
                 <StatCard
                   title="Revenue"
-                  value="$59.97"
+                  value={`$${totalRevenue.toFixed(2)}`}
                   description="Total earnings"
                   icon={<TrendingUp className="h-4 w-4" />}
-                  trend={{ value: "$19.99", positive: true }}
+                  trend={totalRevenue > 0 ? { value: `$${totalRevenue.toFixed(2)}`, positive: true } : undefined}
                 />
               </div>
             </TabsContent>
@@ -272,60 +218,79 @@ const Dashboard = () => {
             <TabsContent value="purchased" className="space-y-6">
               <Card className="shadow-sm bg-card/30 border-border backdrop-blur-sm">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-white">
-                    Purchased Prompts
-                  </CardTitle>
+                  <div>
+                    <CardTitle className="text-white">
+                      Purchased Prompts
+                    </CardTitle>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {totalPurchases > 0 ? `${totalPurchases} purchased + ${purchasedPrompts.length - totalPurchases} free` : 'Free starter prompts'}
+                    </p>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-gray-300 hover:text-white"
+                    onClick={refetch}
+                    disabled={loading}
                   >
-                    View All
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {purchasedPrompts.map((prompt) => (
-                      <div
-                        key={prompt.id}
-                        className="bg-card/50 border border-neon-blue/30 rounded-lg overflow-hidden hover:shadow-md hover:shadow-neon-blue/20 transition-shadow"
-                      >
-                        <div className="h-40 overflow-hidden relative">
-                          <img
-                            src={prompt.image}
-                            alt={prompt.title}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute top-2 right-2 bg-neon-purple text-white text-xs px-2 py-1 rounded-full">
-                            {prompt.category}
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <RefreshCw className="h-8 w-8 animate-spin text-neon-blue" />
+                      <span className="ml-3 text-gray-400">Loading your prompts...</span>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          {purchasedPrompts.map((prompt) => (
+                          <div
+                            key={prompt.id}
+                            className="bg-card/50 border border-neon-blue/30 rounded-lg overflow-hidden hover:shadow-md hover:shadow-neon-blue/20 transition-shadow"
+                          >
+                            <div className="h-40 overflow-hidden relative">
+                              <img
+                                src={prompt.image}
+                                alt={prompt.title}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute top-2 right-2 bg-neon-purple text-white text-xs px-2 py-1 rounded-full">
+                                {prompt.category}
+                              </div>
+                              {prompt.isDefault && (
+                                <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                  Free
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-4">
+                              <h3 className="font-medium text-white mb-1">
+                                {prompt.title}
+                              </h3>
+                              <div className="flex justify-between text-sm text-gray-300 mb-3">
+                                <span>By {prompt.author}</span>
+                                <span>{prompt.price}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-gray-400">
+                                  {prompt.isDefault ? 'Starter prompt' : `Purchased: ${new Date(prompt.date).toLocaleDateString()}`}
+                                </span>
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-neon-blue hover:text-white hover:bg-neon-blue/20"
+                                >
+                                  <Link to={`/prompt/${prompt.id}`}>View</Link>
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-medium text-white mb-1">
-                            {prompt.title}
-                          </h3>
-                          <div className="flex justify-between text-sm text-gray-300 mb-3">
-                            <span>By {prompt.author}</span>
-                            <span>{prompt.price}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400">
-                              Purchased:{" "}
-                              {new Date(prompt.date).toLocaleDateString()}
-                            </span>
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="ghost"
-                              className="text-neon-blue hover:text-white hover:bg-neon-blue/20"
-                            >
-                              <Link to={`/prompt/${prompt.id}`}>View</Link>
-                            </Button>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -333,82 +298,112 @@ const Dashboard = () => {
             <TabsContent value="uploaded" className="space-y-6">
               <Card className="shadow-sm bg-card/30 border-border backdrop-blur-sm">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-white">
-                    My Uploaded Prompts
-                  </CardTitle>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="text-gray-300 hover:text-white"
-                  >
-                    <Link to="/sell-prompt">
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      New Prompt
-                    </Link>
-                  </Button>
+                  <div>
+                    <CardTitle className="text-white">
+                      My Uploaded Prompts
+                    </CardTitle>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {totalUploads > 0 ? `${totalUploads} active listings + ${uploadedPrompts.length - totalUploads} examples` : 'Example prompts'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-gray-300 hover:text-white"
+                      onClick={refetch}
+                      disabled={loading}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="text-gray-300 hover:text-white"
+                    >
+                      <Link to="/sell-prompt">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        New Prompt
+                      </Link>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {uploadedPrompts.map((prompt) => (
-                      <div
-                        key={prompt.id}
-                        className="bg-card/50 border border-neon-pink/30 rounded-lg overflow-hidden hover:shadow-md hover:shadow-neon-pink/20 transition-shadow"
-                      >
-                        <div className="h-40 overflow-hidden relative">
-                          <img
-                            src={prompt.image}
-                            alt={prompt.title}
-                            className="w-full h-full object-cover"
-                          />
-                          <div
-                            className={`absolute top-2 right-2 text-white text-xs px-2 py-1 rounded-full ${
-                              prompt.status === "Active"
-                                ? "bg-green-500"
-                                : "bg-gray-500"
-                            }`}
-                          >
-                            {prompt.status}
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <RefreshCw className="h-8 w-8 animate-spin text-neon-pink" />
+                      <span className="ml-3 text-gray-400">Loading your uploads...</span>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {uploadedPrompts.map((prompt) => (
+                        <div
+                          key={prompt.id}
+                          className="bg-card/50 border border-neon-pink/30 rounded-lg overflow-hidden hover:shadow-md hover:shadow-neon-pink/20 transition-shadow"
+                        >
+                          <div className="h-40 overflow-hidden relative">
+                            <img
+                              src={prompt.image}
+                              alt={prompt.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div
+                              className={`absolute top-2 right-2 text-white text-xs px-2 py-1 rounded-full ${
+                                prompt.status === "Active"
+                                  ? "bg-green-500"
+                                  : "bg-gray-500"
+                              }`}
+                            >
+                              {prompt.status}
+                            </div>
+                            {prompt.isDefault && (
+                              <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                Example
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-medium text-white mb-1">
-                            {prompt.title}
-                          </h3>
-                          <div className="flex justify-between text-sm text-gray-300 mb-3">
-                            <span>{prompt.category}</span>
-                            <span>{prompt.sales} sales</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-white">
-                              {prompt.revenue}
-                            </span>
-                            <div className="flex space-x-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-neon-pink hover:text-white hover:bg-neon-pink/20"
-                              >
-                                <PenTool className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                asChild
-                                size="sm"
-                                variant="ghost"
-                                className="text-neon-blue hover:text-white hover:bg-neon-blue/20"
-                              >
-                                <Link to={`/prompt/${prompt.id}`}>
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View
-                                </Link>
-                              </Button>
+                          <div className="p-4">
+                            <h3 className="font-medium text-white mb-1">
+                              {prompt.title}
+                            </h3>
+                            <div className="flex justify-between text-sm text-gray-300 mb-3">
+                              <span>{prompt.category}</span>
+                              <span>{prompt.sales} sales</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-white">
+                                {prompt.revenue}
+                              </span>
+                              <div className="flex space-x-1">
+                                {!prompt.isDefault && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-neon-pink hover:text-white hover:bg-neon-pink/20"
+                                  >
+                                    <PenTool className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Button>
+                                )}
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-neon-blue hover:text-white hover:bg-neon-blue/20"
+                                >
+                                  <Link to={`/prompt/${prompt.id}`}>
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View
+                                  </Link>
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

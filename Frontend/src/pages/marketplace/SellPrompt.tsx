@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import axios from "axios"
+import { useZKLogin } from "react-sui-zk-login-kit"
+import { contentService } from "@/services/content.service"
+import { walrusService } from "@/services/walrus.service"
 import {
   Select,
   SelectContent,
@@ -35,6 +38,8 @@ import {
 const SellPrompt = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { address } = useZKLogin()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
     title: "",
@@ -264,17 +269,36 @@ const SellPrompt = () => {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    console.log("Form submitted with data:", formData);
+    console.log("User address:", address);
+
+    // Check if user is logged in
+    if (!address) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login with ZK Login to submit a prompt.",
+        variant: "destructive",
+      })
+      navigate("/login")
+      return
+    }
 
     // Validation
     if (
       !formData.title ||
       !formData.description ||
       !formData.category ||
-      !formData.model ||
       !formData.systemPrompt
     ) {
+      console.log("Validation failed:", {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        systemPrompt: formData.systemPrompt,
+      });
       toast({
         title: "Missing required fields",
         description: "Please fill in all required fields before submitting.",
@@ -283,25 +307,107 @@ const SellPrompt = () => {
       return
     }
 
-    // Check sample inputs/outputs
-    if (formData.sampleInputs[0] === "" || formData.sampleOutputs[0] === "") {
+    // Model is only required for "prompt" category
+    if (formData.category === "prompt" && !formData.model) {
+      console.log("Model validation failed for prompt category");
       toast({
-        title: "Sample required",
-        description: "Please provide at least one sample input and output.",
+        title: "Model required",
+        description: "Please select an AI model for your prompt.",
         variant: "destructive",
       })
       return
     }
 
-    // Submit form - this would normally call an API
-    toast({
-      title: "Prompt Submitted",
-      description: "Your prompt has been submitted for review.",
-    })
+    // Check sample inputs/outputs - only for prompt category
+    if (formData.category === "prompt") {
+      const hasInput = formData.sampleInputs[0] && formData.sampleInputs[0].trim() !== "";
+      const hasOutput = formData.sampleOutputs[0] && formData.sampleOutputs[0].trim() !== "";
+      
+      console.log("Sample validation:", {
+        sampleInput: formData.sampleInputs[0],
+        sampleOutput: formData.sampleOutputs[0],
+        hasInput,
+        hasOutput,
+      });
 
-    setTimeout(() => {
-      navigate("/dashboard/my-prompts")
-    }, 2000)
+      if (!hasInput || !hasOutput) {
+        toast({
+          title: "Sample required",
+          description: "Please provide at least one sample input and output.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      // Step 1: Encrypt and upload prompt to Walrus
+      toast({
+        title: "Uploading to Walrus...",
+        description: "Encrypting and storing your prompt securely.",
+      })
+
+      const encryptedPrompt = await walrusService.encryptContent(formData.systemPrompt)
+      const walrusUpload = await walrusService.uploadContent(encryptedPrompt, {
+        title: formData.title,
+        owner: address,
+      })
+      
+      const walrusContentId = walrusUpload.blobId
+      
+      // Prepare content data for backend
+      const contentData = {
+        content_id: walrusContentId,
+        owner_id: address, // Use ZK Login address as owner_id
+        title: formData.title,
+        description: formData.description,
+        llm_model: formData.model || "gpt-3.5-turbo", // Default model if not specified
+        llm_settings: {
+          temperature: modelSettings.temperature[0],
+          max_tokens: modelSettings.maxTokens[0],
+          top_p: modelSettings.topP[0],
+          frequency_penalty: modelSettings.frequencyPenalty[0],
+          presence_penalty: modelSettings.presencePenalty[0],
+        },
+        price: formData.price,
+        metadata: {
+          content_type: formData.category === "prompt" ? "text" : "other",
+          category: formData.category,
+          subcategory: formData.subcategory,
+          test_price: formData.testPrice,
+          long_description: formData.longDescription,
+          sample_inputs: formData.sampleInputs,
+          sample_outputs: formData.sampleOutputs,
+          sample_images: formData.sampleImages,
+        },
+        prompt: formData.systemPrompt,
+        preview_url: formData.sampleImages[0] || "",
+      }
+
+      // Submit to backend
+      const response = await contentService.addContent(contentData)
+
+      toast({
+        title: "Prompt Submitted Successfully!",
+        description: `Your prompt "${formData.title}" has been added to the marketplace.`,
+      })
+
+      // Navigate to dashboard after a short delay
+      setTimeout(() => {
+        navigate("/dashboard")
+      }, 1500)
+    } catch (error: any) {
+      console.error("Error submitting prompt:", error)
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit prompt. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -960,9 +1066,10 @@ const SellPrompt = () => {
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-4 py-4 text-md text-white font-light group transition-all duration-300"
+                    disabled={isSubmitting}
+                    className="bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-4 py-4 text-md text-white font-light group transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Submit Prompt
+                    {isSubmitting ? "Submitting..." : "Submit Prompt"}
                   </Button>
                 </CardFooter>
               </Card>

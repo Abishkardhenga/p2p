@@ -1,1 +1,1 @@
-export const VITE_BASE_URL = "" //Backend URL set in .env file
+export const VITE_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:8000/api/v1" //Backend URL set in .env file
