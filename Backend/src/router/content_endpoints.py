@@ -20,6 +20,19 @@ async def create_prompt(content_data: ContentCreate):
     """
     print(f"\n\n add_content: owner_id: {content_data.owner_id}")
     
+    # Create user if they don't exist
+    user = db.get_user(content_data.owner_id)
+    if not user:
+        from models.schemas import User
+        new_user = User(
+            id=content_data.owner_id,
+            username=f"user_{content_data.owner_id[:8]}",
+            profile_picture=None,
+            description=None
+        )
+        db.add_user(new_user)
+        print(f"Created new user: {content_data.owner_id}")
+    
     if not content_data.content_id or content_data.content_id == "" or content_data.content_id == "None" or content_data.content_id == "undefined" or content_data.content_id == "null":
         content_data.content_id = str(uuid.uuid4())
     
@@ -87,6 +100,19 @@ async def get_n_items(n: int):
 @legacy_router.post("/add_image_generation", response_model=Content)
 async def add_image_generation_content(content_data: ImageContentCreate):
     """Add new image generation content to the marketplace"""
+    # Create user if they don't exist
+    user = db.get_user(content_data.owner_id)
+    if not user:
+        from models.schemas import User
+        new_user = User(
+            id=content_data.owner_id,
+            username=f"user_{content_data.owner_id[:8]}",
+            profile_picture=None,
+            description=None
+        )
+        db.add_user(new_user)
+        print(f"Created new user: {content_data.owner_id}")
+    
     # We can mark this content as image-related in metadata
     metadata = content_data.metadata or {}
     metadata["content_type"] = "image"
