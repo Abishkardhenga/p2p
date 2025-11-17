@@ -56,7 +56,8 @@ class LLMService:
         
         print(f"\n\n----- Testing prompt: '{the_prompt}'\n ----- using model: '{llm_model}' with settings: {llm_settings}\n")
 
-        if llm_model in self.models['atoma']:
+        # Check if Atoma is enabled and model is in Atoma list
+        if SHOW_ATOMA_MODELS and 'atoma' in self.models and llm_model in self.models['atoma']:
             # return await self.generate_response(the_prompt, llm_model, llm_settings)
             return await self.atoma_api.query_atoma_async(the_prompt, llm_model, llm_settings)
 
@@ -66,7 +67,7 @@ class LLMService:
         
         elif llm_model in self.models['openai']:
             # return await self.generate_response(query, llm_model, llm_settings)
-            return await self.openai_api.query_openai_async(the_prompt, llm_model)
+            return await self.openai_api.query_openai_async(the_prompt, llm_model, llm_settings)
         
         # gpt-4o-mini is cheap model so using it as default.
         return await self.openai_api.query_openai_async(the_prompt, DEFAULT_LLM_MODEL, llm_settings)

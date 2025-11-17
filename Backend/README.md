@@ -3,6 +3,7 @@ Certainly! Here's a refined and more readable version of your README for the Pro
 ---
 
 # 🧠 Prompt Marketplace Backend
+
 A FastAPI-powered backend for managing AI prompts, user interactions, and purchases
 
 ---
@@ -11,46 +12,54 @@ Certainly! Here's a refined and more readable version of your README for the Pro
 
 ### Prerequisites
 
- Python 3.+
- [Poetry](https://python-poetry.org/docs)
+Python 3.+
+[Poetry](https://python-poetry.org/docs)
 
 ### Installation
 
-1 **Clone the repository*
+1 \**Clone the repository*
 
-   ```bash
-   git clone -b restructure/dev --single-branch https://github.com/DanpheLabs/prompt-proof-market.git
-   cd prompt-proof-market/backend
-   ```
+```bash
+git clone -b restructure/dev --single-branch https://github.com/DanpheLabs/prompt-proof-market.git
+cd prompt-proof-market/backend
+```
+
 
 
-2 **Set up environment variables*
+2 \**Set up environment variables*
 
-   Rename `.env.example` to `.env` and fill in the required values.
+Rename `.env.example` to `.env` and fill in the required values.
 
-3 **Install dependencies*
+3 \**Install dependencies*
 
-   ```bash
-   poetry install
-   ```
+```bash
+poetry install
+```
+
 
 
-4 **Run the application*
+4 \**Run the application*
 
-   ```bash
-   poetry run python src/main.py
-   ```
+```bash
+poetry run python src/main.py
+
+or
+
+PYTHONPATH=. python3 src/main.py
+```
+
 
 
-5 **Access API documentation*
+5 \**Access API documentation*
 
-   Navigate to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to view the Swagger UI.
+Navigate to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to view the Swagger UI.
 
 ---
 
 ## 📚 API Endpoints
 
 ### 🔧 Test
+
 - `GET /api/v1/tst`
 
 ### 📝 Prompt
@@ -75,24 +84,24 @@ Certainly! Here's a refined and more readable version of your README for the Pro
 
 ###User
 
-| Field          | Type            |
-|----------------|-----------------|
-| `zk_login_data` | `Dict`          |
-| `user_id`       | `str` or `nt`  |
+|                | Field         | Type |
+| --------------- | ------------- | ---- |
+| `zk_login_data` | `Dict`        |
+| `user_id`       | `str` or `nt` |    |
 
 ### Pompt
 
-| Field                   | Type            |
-|--------------------------|-----------------|
-| `title`                  | `str`           |
-| `description`            | `str`           |
-| `llm_model`              | `str` (default: `"gpt-4o-mini"`) |
-| `llm_settings`           | `Dict` (default: see below) |
-| `encrypted_system_prompt`| `Optional[str]` |
-| `price`                  | `str` or `float` (default: `0.0`) |
-| `results`                | `List[Dict]`    |
-| `test_query`             | `Optional[str]` |
-| `id`                     | `Optional[tr]` |
+|                          | Field                             | Type |
+| ------------------------- | --------------------------------- | ---- |
+| `title`                   | `str`                             |
+| `description`             | `str`                             |
+| `llm_model`               | `str` (default: `"gpt-4o-mini"`)  |
+| `llm_settings`            | `Dict` (default: see below)       |
+| `encrypted_system_prompt` | `Optional[str]`                   |
+| `price`                   | `str` or `float` (default: `0.0`) |
+| `results`                 | `List[Dict]`                      |
+| `test_query`              | `Optional[str]`                   |
+| `id`                      | `Optional[tr]`                    |    |
 
 ### PromptCeate
 
@@ -100,30 +109,30 @@ Certainly! Here's a refined and more readable version of your README for the Pro
 
 ### Purhase
 
-| Field      | Type           |
-|------------|----------------|
-| `user_id`  | `str` or `int` |
-| `prompt_id`| `str` or int` |
+|            | Field          | Type |
+| ----------- | -------------- | ---- |
+| `user_id`   | `str` or `int` |
+| `prompt_id` | `str` or int`  |    |
 
 ### Searchuery
 
-| Field   | Type |
-|---------|------|
-| `query` |`str`|
+|        | Field | Type |
+| ------- | ----- | ---- |
+| `query` | `str` |    |
 
 ### TestPromptReuest
 
-| Field         | Type            |
-|----------------|-----------------|
-| `query`        | `str`           |
+|               | Field                                 | Type |
+| -------------- | ------------------------------------- | ---- |
+| `query`        | `str`                                 |
 | `llm_settings` | `Optional[Dict]` (default: see below) |
-| `prompt_id`    | `Optional[tr]` |
+| `prompt_id`    | `Optional[tr]`                        |    |
 
 ### SearchRsult
 
-| Field    | Type         |
-|-----------|--------------|
-| `results` | `List[Propt]` |
+|          | Field         | Type |
+| --------- | ------------- | ---- |
+| `results` | `List[Propt]` |    |
 
 ---
 
@@ -132,6 +141,7 @@ Certainly! Here's a refined and more readable version of your README for the Pro
 These settings configure the behavior of the languagemodl:
 
 
+
 ```python
 DEFAULT_LLM_SETTINGS = {
     "temperature": 0.7,           # Controls randomness: 0 (deterministic) to 2 (more random)
@@ -140,11 +150,13 @@ DEFAULT_LLM_SETTINGS = {
     "frequency_penalty": 0.0,     # Discourages repetition: -2.0 to 2.0
     "presence_penalty": 0.0       # Encourages new topics: -2.0 to 2.0}
 ```
+
 
 
 ---
 
 ## Example data for `test_chat_completion`
+
 ```
 {
   "query": "also say goodbye in english",
@@ -176,6 +188,7 @@ DEFAULT_LLM_SETTINGS = {
 ```
 
 ## Example data for `test_image_generation`
+
 ```
 {
   "query": "add orange strips",
@@ -204,8 +217,9 @@ DEFAULT_LLM_SETTINGS = {
 
 - Utilizes [Poetry](https://python-poetry.org/docs/) for dependency mangemnt.
 - Built with [FastAPI](https://fastapi.tiangolo.com/) for high-performance API deveopmnt.
+
 ---
 
 Happy Coding! 🚀
 
---- 
+---
