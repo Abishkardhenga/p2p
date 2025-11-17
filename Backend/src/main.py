@@ -1,5 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from constants import PORT
 from middlewares import cors
@@ -12,6 +14,11 @@ app = FastAPI(
 
 cors.configure(app)
 app.include_router(router=router_v1)
+
+# Serve uploaded images
+uploads_dir = Path("uploads")
+uploads_dir.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/healthcheck")

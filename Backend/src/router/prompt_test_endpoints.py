@@ -6,7 +6,7 @@ from database.db import db
 from services.llm_service import llm_service
 from constants import DEFAULT_LLM_MODEL, DEFAULT_IMAGE_MODEL
 
-from src.constants import ALLOW_UNPURCHASED_PROMPTS_TESTING
+from constants import ALLOW_UNPURCHASED_PROMPTS_TESTING
 
 router = APIRouter(prefix="/test", tags=["testing"])
 

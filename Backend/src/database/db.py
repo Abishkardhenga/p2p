@@ -30,6 +30,12 @@ class InMemoryDatabase:
         self.content[str(content.id)] = content
         return content
     
+    def update_content(self, content: Content) -> Content:
+        """Update existing content (same as add for in-memory)"""
+        print(f"\n\n updating content: {content}")
+        self.content[str(content.id)] = content
+        return content
+    
     def get_content(self, content_id: str) -> Optional[Content]:
         return self.content.get(content_id)
     
@@ -155,7 +161,7 @@ class SQLiteDatabase:
         
         cursor.execute(
             """
-            INSERT INTO content (
+            INSERT OR REPLACE INTO content (
                 id, owner_id, title, description, llm_model, llm_settings, 
                 price, system_prompt, metadata, prompt, preview_url
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -172,6 +178,33 @@ class SQLiteDatabase:
         
         return content
     
+    def update_content(self, content: Content) -> Content:
+        """Update existing content"""
+        print(f"\n\n updating content: {content}")
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """
+            UPDATE content 
+            SET owner_id = ?, title = ?, description = ?, llm_model = ?, 
+                llm_settings = ?, price = ?, system_prompt = ?, metadata = ?, 
+                prompt = ?, preview_url = ?
+            WHERE id = ?
+            """,
+            (
+                content.owner_id, content.title, content.description, content.llm_model,
+                json.dumps(content.llm_settings), float(content.price), 
+                content.system_prompt, json.dumps(content.metadata or {}), 
+                content.prompt, content.preview_url, content.id
+            )
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return content
+    
     def get_content(self, content_id: str) -> Optional[Content]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -179,7 +212,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata, prompt
+                   price, system_prompt, metadata, prompt, preview_url
             FROM content WHERE id = ?
             """, 
             (content_id,)
@@ -190,6 +223,13 @@ class SQLiteDatabase:
         
         if result:
             print(f"\n\n got content: {result}")
+            metadata = json.loads(result[8]) if result[8] else None
+            preview_url = result[10] if len(result) > 10 else None
+            
+            print(f"📦 Parsed metadata: {metadata}")
+            print(f"📸 Sample images in metadata: {metadata.get('sample_images') if metadata else None}")
+            print(f"🖼️ Preview URL: {preview_url}")
+            
             return Content(
                 id=result[0],
                 owner_id=result[1],
@@ -199,8 +239,9 @@ class SQLiteDatabase:
                 llm_settings=json.loads(result[5]),
                 price=result[6],
                 system_prompt=result[7],
-                metadata=json.loads(result[8]) if result[8] else None,
-                prompt=result[9] if result[9] else None
+                metadata=metadata,
+                prompt=result[9] if result[9] else None,
+                preview_url=preview_url
             )
         return None
     
@@ -211,7 +252,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata, prompt
+                   price, system_prompt, metadata, prompt, preview_url
             FROM content WHERE owner_id = ?
             """,
             (owner_id,)
@@ -234,7 +275,8 @@ class SQLiteDatabase:
                 price=result[6],
                 system_prompt=result[7],
                 metadata=json.loads(result[8]) if result[8] else None,
-                prompt=result[9] if result[9] else None
+                prompt=result[9] if result[9] else None,
+                preview_url=result[10] if len(result) > 10 else None
             ))
         
         return content_list
@@ -264,7 +306,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata
+                   price, system_prompt, metadata, prompt, preview_url
             FROM content
             LIMIT ?
             """,
@@ -285,7 +327,9 @@ class SQLiteDatabase:
                 llm_settings=json.loads(result[5]),
                 price=result[6],
                 system_prompt=result[7],
-                metadata=json.loads(result[8]) if result[8] else None
+                metadata=json.loads(result[8]) if result[8] else None,
+                prompt=result[9] if result[9] else None,
+                preview_url=result[10] if len(result) > 10 else None
             ))
         
         return content_list
@@ -299,7 +343,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata
+                   price, system_prompt, metadata, prompt, preview_url
             FROM content 
             WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
             """, 
@@ -320,7 +364,9 @@ class SQLiteDatabase:
                 llm_settings=json.loads(result[5]),
                 price=result[6],
                 system_prompt=result[7],
-                metadata=json.loads(result[8]) if result[8] else None
+                metadata=json.loads(result[8]) if result[8] else None,
+                prompt=result[9] if result[9] else None,
+                preview_url=result[10] if len(result) > 10 else None
             ))
         
         return content_list

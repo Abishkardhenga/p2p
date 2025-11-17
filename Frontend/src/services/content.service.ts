@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./http.client";
+import { apiGet, apiPost, apiPut } from "./http.client";
 
 export interface ContentCreate {
   content_id?: string;
@@ -37,6 +37,11 @@ export const contentService = {
   // Add new content
   addContent: async (contentData: ContentCreate): Promise<Content> => {
     return apiPost("/content/add", contentData);
+  },
+
+  // Update existing content
+  updateContent: async (contentId: string, contentData: ContentCreate): Promise<Content> => {
+    return apiPut(`/content/${contentId}`, contentData);
   },
 
   // Search content

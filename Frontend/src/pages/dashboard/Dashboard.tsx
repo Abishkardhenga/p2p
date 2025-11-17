@@ -378,12 +378,15 @@ const Dashboard = () => {
                               <div className="flex space-x-1">
                                 {!prompt.isDefault && (
                                   <Button
+                                    asChild
                                     size="sm"
                                     variant="ghost"
                                     className="text-neon-pink hover:text-white hover:bg-neon-pink/20"
                                   >
-                                    <PenTool className="h-4 w-4 mr-1" />
-                                    Edit
+                                    <Link to={`/sell-prompt/${prompt.id}`}>
+                                      <PenTool className="h-4 w-4 mr-1" />
+                                      Edit
+                                    </Link>
                                   </Button>
                                 )}
                                 <Button

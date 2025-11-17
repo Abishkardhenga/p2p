@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { useToast } from "@/components/ui/use-toast"
 import MainLayout from "@/components/layout/MainLayout"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import axios from "axios"
 import { useZKLogin } from "react-sui-zk-login-kit"
 import { contentService } from "@/services/content.service"
 import { walrusService } from "@/services/walrus.service"
+import { uploadService } from "@/services/upload.service"
 import {
   Select,
   SelectContent,
@@ -24,7 +25,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card" 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
 import { Info, PlusCircle, Trash } from "lucide-react"
@@ -37,9 +38,12 @@ import {
 
 const SellPrompt = () => {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
   const { toast } = useToast()
   const { address } = useZKLogin()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
 
   const [formData, setFormData] = useState({
     title: "",
@@ -72,6 +76,66 @@ const SellPrompt = () => {
   const [currentSuiPrice, setCurrentSuiPrice] = useState(0)
   const [activeTab, setActiveTab] = useState("details")
   const [imageSizes, setImageSizes] = useState<Record<number, string>>({})
+  const [imageFiles, setImageFiles] = useState<Record<number, File>>({})
+
+  // Load existing prompt data when editing
+  useEffect(() => {
+    if (id) {
+      setIsEditMode(true)
+      setIsLoadingPrompt(true)
+      
+      contentService.getContent(id)
+        .then((content) => {
+          console.log("📥 Loaded content from backend:", content)
+          console.log("📸 Sample images:", content.metadata?.sample_images)
+          console.log("🖼️ Preview URL:", content.preview_url)
+          
+          setFormData({
+            title: content.title || "",
+            description: content.description || "",
+            longDescription: content.metadata?.long_description || content.description || "",
+            category: content.metadata?.category || "",
+            subcategory: content.metadata?.subcategory || "",
+            model: content.llm_model || "",
+            price: content.price || 19.99,
+            testPrice: content.metadata?.test_price || content.price * 0.1 || 1.99,
+            systemPrompt: content.prompt || "",
+            userPrompt: content.metadata?.user_prompt || "",
+            sampleInputs: content.metadata?.sample_inputs || [""],
+            sampleOutputs: content.metadata?.sample_outputs || [""],
+            sampleImages: content.metadata?.sample_images || [""],
+          })
+          
+          // Load model settings if available
+          if (content.llm_settings) {
+            setModelSettings({
+              temperature: [content.llm_settings.temperature || 0.7],
+              maxTokens: [content.llm_settings.max_tokens || 1500],
+              topP: [content.llm_settings.top_p || 0.9],
+              frequencyPenalty: [content.llm_settings.frequency_penalty || 0.5],
+              presencePenalty: [content.llm_settings.presence_penalty || 0.5],
+            })
+          }
+          
+          toast({
+            title: "Prompt loaded",
+            description: "You can now edit your prompt.",
+          })
+        })
+        .catch((error) => {
+          console.error("Error loading prompt:", error)
+          toast({
+            title: "Error loading prompt",
+            description: "Could not load prompt data. Please try again.",
+            variant: "destructive",
+          })
+          navigate("/dashboard")
+        })
+        .finally(() => {
+          setIsLoadingPrompt(false)
+        })
+    }
+  }, [id])
 
   useEffect(() => {
     const apiKey = "CG-JwZR5W5Wk65HhZTgD6cUejGt" // Removed trailing tab
@@ -321,19 +385,38 @@ const SellPrompt = () => {
     // Check sample inputs/outputs - only for prompt category
     if (formData.category === "prompt") {
       const hasInput = formData.sampleInputs[0] && formData.sampleInputs[0].trim() !== "";
-      const hasOutput = formData.sampleOutputs[0] && formData.sampleOutputs[0].trim() !== "";
+      
+      // For image models (dall-e), check if sample image exists
+      // For text models, check if sample output text exists
+      const isImageModel = formData.model && (formData.model.includes("dall-e") || formData.model.includes("stable-diffusion"));
+      const hasOutput = isImageModel 
+        ? (formData.sampleImages[0] && formData.sampleImages[0].trim() !== "")
+        : (formData.sampleOutputs[0] && formData.sampleOutputs[0].trim() !== "");
       
       console.log("Sample validation:", {
         sampleInput: formData.sampleInputs[0],
         sampleOutput: formData.sampleOutputs[0],
+        sampleImage: formData.sampleImages[0],
+        isImageModel,
         hasInput,
         hasOutput,
       });
 
-      if (!hasInput || !hasOutput) {
+      if (!hasInput) {
         toast({
-          title: "Sample required",
-          description: "Please provide at least one sample input and output.",
+          title: "Sample input required",
+          description: "Please provide at least one sample input.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!hasOutput) {
+        toast({
+          title: "Sample output required",
+          description: isImageModel 
+            ? "Please provide at least one sample image for image generation prompts."
+            : "Please provide at least one sample output text.",
           variant: "destructive",
         })
         return
@@ -343,21 +426,54 @@ const SellPrompt = () => {
     setIsSubmitting(true)
 
     try {
-      // Step 1: Encrypt and upload prompt to Walrus
+      // Step 1: Upload image files to backend
       toast({
-        title: "Uploading to Walrus...",
-        description: "Encrypting and storing your prompt securely.",
-      })
-
-      const encryptedPrompt = await walrusService.encryptContent(formData.systemPrompt)
-      const walrusUpload = await walrusService.uploadContent(encryptedPrompt, {
-        title: formData.title,
-        owner: address,
+        title: "Uploading images...",
+        description: "Please wait while we upload your images.",
       })
       
-      const walrusContentId = walrusUpload.blobId
+      const uploadedImageUrls = [...formData.sampleImages]
+      for (const [index, file] of Object.entries(imageFiles)) {
+        const idx = Number(index)
+        try {
+          console.log(`📤 Uploading image ${idx}:`, file.name)
+          const url = await uploadService.uploadImage(file)
+          uploadedImageUrls[idx] = url
+          console.log(`✅ Uploaded image ${idx}:`, url)
+        } catch (error) {
+          console.error(`Failed to upload image ${idx}:`, error)
+          toast({
+            title: "Image upload warning",
+            description: `Failed to upload image ${idx + 1}. Using placeholder.`,
+            variant: "destructive",
+          })
+        }
+      }
+      
+      // Step 2: Encrypt and upload prompt to Walrus (skip if editing and prompt unchanged)
+      let walrusContentId = id; // Use existing ID if editing
+      
+      if (!isEditMode) {
+        toast({
+          title: "Uploading to Walrus...",
+          description: "Encrypting and storing your prompt securely.",
+        })
+
+        const encryptedPrompt = await walrusService.encryptContent(formData.systemPrompt)
+        const walrusUpload = await walrusService.uploadContent(encryptedPrompt, {
+          title: formData.title,
+          owner: address,
+        })
+        
+        walrusContentId = walrusUpload.blobId
+      }
       
       // Prepare content data for backend
+      // Filter out empty values and use uploaded URLs
+      const filteredSampleInputs = formData.sampleInputs.filter(input => input && input.trim() !== "");
+      const filteredSampleOutputs = formData.sampleOutputs.filter(output => output && output.trim() !== "");
+      const filteredSampleImages = uploadedImageUrls.filter(image => image && image.trim() !== "" && !image.startsWith("blob:"));
+      
       const contentData = {
         content_id: walrusContentId,
         owner_id: address, // Use ZK Login address as owner_id
@@ -378,20 +494,37 @@ const SellPrompt = () => {
           subcategory: formData.subcategory,
           test_price: formData.testPrice,
           long_description: formData.longDescription,
-          sample_inputs: formData.sampleInputs,
-          sample_outputs: formData.sampleOutputs,
-          sample_images: formData.sampleImages,
+          sample_inputs: filteredSampleInputs,
+          sample_outputs: filteredSampleOutputs,
+          sample_images: filteredSampleImages,
         },
         prompt: formData.systemPrompt,
-        preview_url: formData.sampleImages[0] || "",
+        preview_url: filteredSampleImages[0] || "",
       }
+      
+      console.log("💾 Saving content data:", {
+        ...contentData,
+        metadata: {
+          ...contentData.metadata,
+          sample_inputs_count: contentData.metadata.sample_inputs.length,
+          sample_outputs_count: contentData.metadata.sample_outputs.length,
+          sample_images_count: contentData.metadata.sample_images.length,
+        }
+      })
 
       // Submit to backend
-      const response = await contentService.addContent(contentData)
+      let response;
+      if (isEditMode && id) {
+        response = await contentService.updateContent(id, contentData)
+      } else {
+        response = await contentService.addContent(contentData)
+      }
 
       toast({
-        title: "Prompt Submitted Successfully!",
-        description: `Your prompt "${formData.title}" has been added to the marketplace.`,
+        title: isEditMode ? "Prompt Updated Successfully!" : "Prompt Submitted Successfully!",
+        description: isEditMode 
+          ? `Your prompt "${formData.title}" has been updated.`
+          : `Your prompt "${formData.title}" has been added to the marketplace.`,
       })
 
       // Navigate to dashboard after a short delay
@@ -410,6 +543,22 @@ const SellPrompt = () => {
     }
   }
 
+  // Show loading state when fetching prompt data
+  if (isLoadingPrompt) {
+    return (
+      <MainLayout>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-purple mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading prompt data...</p>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -418,7 +567,7 @@ const SellPrompt = () => {
           <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-neon-blue/20 rounded-full blur-xl animate-pulse"></div>
 
           <h1 className="text-3xl font-bold text-foreground mb-2 relative z-10">
-            Sell Your Prompt
+            {isEditMode ? "Edit Your Prompt" : "Sell Your Prompt"}
           </h1>
           <div className="h-1 w-20 bg-gradient-to-r from-neon-purple to-neon-blue mb-4"></div>
           <p className="text-muted-foreground max-w-3xl relative z-10">
@@ -825,7 +974,7 @@ const SellPrompt = () => {
                             Sample Output {index + 1}
                           </Label>
                           <div className="space-y-4">
-                            {formData.category === "prompt" ? (
+                            {formData.category === "prompt" && formData.model && (formData.model.includes("dall-e") || formData.model.includes("stable-diffusion")) ? (
                               <div className="space-y-3">
                                 {formData.sampleImages[index] ? (
                                   // Display existing image with controls
@@ -916,14 +1065,20 @@ const SellPrompt = () => {
                                               e.target.files &&
                                               e.target.files[0]
                                             ) {
+                                              const file = e.target.files[0]
+                                              
+                                              // Store the File object
+                                              setImageFiles((prev) => ({
+                                                ...prev,
+                                                [index]: file,
+                                              }))
+                                              
                                               // Create a temporary URL for preview
-                                              const url = URL.createObjectURL(
-                                                e.target.files[0]
-                                              )
+                                              const url = URL.createObjectURL(file)
 
                                               // Get file size in MB
                                               const fileSizeMB = (
-                                                e.target.files[0].size /
+                                                file.size /
                                                 (1024 * 1024)
                                               ).toFixed(2)
                                               setImageSizes((prev) => ({
@@ -1069,7 +1224,10 @@ const SellPrompt = () => {
                     disabled={isSubmitting}
                     className="bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-4 py-4 text-md text-white font-light group transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? "Submitting..." : "Submit Prompt"}
+                    {isSubmitting 
+                      ? (isEditMode ? "Updating..." : "Submitting...") 
+                      : (isEditMode ? "Update Prompt" : "Submit Prompt")
+                    }
                   </Button>
                 </CardFooter>
               </Card>

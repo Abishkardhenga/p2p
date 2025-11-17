@@ -95,6 +95,39 @@ async def get_n_items(n: int):
     """
     return db.get_n_items(n)
 
+@router.put("/{content_id}", response_model=Content)
+async def update_prompt(content_id: str, content_data: ContentCreate):
+    """
+    Update existing content in the marketplace
+    """
+    print(f"\n\n update_content: content_id: {content_id}, owner_id: {content_data.owner_id}")
+    
+    # Check if content exists
+    existing_content = db.get_content(content_id)
+    if not existing_content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    # Verify ownership
+    if existing_content.owner_id != content_data.owner_id:
+        raise HTTPException(status_code=403, detail="You don't have permission to update this content")
+    
+    # Update content
+    content = Content(
+        id=content_id,
+        owner_id=content_data.owner_id,
+        title=content_data.title,
+        description=content_data.description,
+        llm_model=content_data.llm_model,
+        llm_settings=content_data.llm_settings,
+        price=content_data.price,
+        metadata=content_data.metadata or {},
+        prompt=content_data.prompt,
+        preview_url=content_data.preview_url
+    )
+    
+    updated_content = db.update_content(content)
+    return updated_content
+
 
 # Legacy endpoints
 @legacy_router.post("/add_image_generation", response_model=Content)

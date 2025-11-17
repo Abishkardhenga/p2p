@@ -564,41 +564,79 @@ const PromptDetail = () => {
                     Sample Outputs
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {prompt.sampleOutputImages.map(
-                      (image: string, index: number) => (
-                        <div key={index} className="space-y-3">
-                          <div className="aspect-video rounded-lg overflow-hidden border border-border">
-                            <img
-                              src={image}
-                              alt={`Sample output ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <p className="font-medium text-sm">
-                              {prompt.sampleInputs[index]}
-                            </p>
-                            <div className="bg-card border border-border rounded-md p-3 text-xs text-muted-foreground font-mono relative group">
-                              <p className="overflow-x-auto max-h-24 scrollbar-none">
-                                {prompt.sampleOutputs[index]}
+                  {prompt.sampleOutputImages && prompt.sampleOutputImages.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {prompt.sampleOutputImages.map(
+                        (image: string, index: number) => (
+                          <div key={index} className="space-y-3">
+                            <div className="aspect-video rounded-lg overflow-hidden border border-border">
+                              <img
+                                src={image}
+                                alt={`Sample output ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="font-medium text-sm text-foreground">
+                                Input Prompt:
                               </p>
-                              <button
-                                onClick={() =>
-                                  handleCopyToClipboard(
-                                    prompt.sampleOutputs[index]
-                                  )
-                                }
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card p-1 rounded"
-                              >
-                                <Copy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                              </button>
+                              <div className="bg-card border border-border rounded-md p-3 pr-10 text-xs text-muted-foreground font-mono relative group">
+                                <p className="break-words whitespace-pre-wrap max-h-32 overflow-y-auto pr-2">
+                                  {prompt.sampleInputs[index] || "No input provided"}
+                                </p>
+                                <button
+                                  onClick={() =>
+                                    handleCopyToClipboard(
+                                      prompt.sampleInputs[index] || ""
+                                    )
+                                  }
+                                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card/90 p-1.5 rounded hover:bg-card border border-border"
+                                  disabled={!prompt.sampleInputs[index]}
+                                >
+                                  <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                </button>
+                              </div>
+                              
+                              {prompt.sampleOutputs[index] && (
+                                <>
+                                  <p className="font-medium text-sm text-foreground mt-3">
+                                    Output:
+                                  </p>
+                                  <div className="bg-card border border-border rounded-md p-3 pr-10 text-xs text-muted-foreground font-mono relative group">
+                                    <p className="break-words whitespace-pre-wrap max-h-32 overflow-y-auto pr-2">
+                                      {prompt.sampleOutputs[index]}
+                                    </p>
+                                    <button
+                                      onClick={() =>
+                                        handleCopyToClipboard(
+                                          prompt.sampleOutputs[index]
+                                        )
+                                      }
+                                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card/90 p-1.5 rounded hover:bg-card border border-border"
+                                    >
+                                      <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      )
-                    )}
-                  </div>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 border border-dashed border-border rounded-lg">
+                      <ImageIcon className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground text-center max-w-md">
+                        No sample outputs available for this prompt yet. 
+                        {prompt.author?.id === address && (
+                          <span className="block mt-2">
+                            Click "Edit" to add sample inputs, outputs, and images.
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
