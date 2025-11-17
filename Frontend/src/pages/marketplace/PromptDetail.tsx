@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import MainLayout from "@/components/layout/MainLayout";
+import { contentService } from "@/services/content.service";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -52,63 +53,124 @@ const PromptDetail = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Sample prompt data - would come from an API in a real application
+  // Fetch prompt data from backend
   useEffect(() => {
-    // Simulate API call
-    setLoading(true);
-    setTimeout(() => {
-      const samplePrompt = {
-        id: id,
-        title: "AI Art Style Creator",
-        description: "Generate beautiful images in various artistic styles with perfectly crafted prompts for Midjourney, DALL-E, or Stable Diffusion.",
-        longDescription: "This prompt is designed to help artists and designers create beautiful AI-generated images in any style they desire. The prompt guides the AI to create detailed, coherent images with consistent style elements, lighting, and composition. It works with all major image generation models including Midjourney, DALL-E, and Stable Diffusion. The prompt structure has been tested and refined through thousands of generations to produce the highest quality outputs with minimal prompt tweaking required.",
-        price: 29.99,
-        rating: 4.9,
-        reviews: 187,
-        model: "Universal",
-        supportedModels: ["Midjourney", "DALL-E 3", "Stable Diffusion"],
-        modelSettings: {
-          temperature: 0.7,
-          maxTokens: 1500,
-          topP: 0.9,
-          frequencyPenalty: 0.5,
-          presencePenalty: 0.5
-        },
-        category: "Art",
-        tags: ["art", "design", "image generation", "creative", "visual", "midjourney", "stable diffusion", "dalle"],
-        author: {
-          id: "author7",
-          name: "Art Whisperer",
-          avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuFzAIR675Zc4LuhA3P2bVCgE6zKcgJIu50Q&s",
-          rating: 4.9,
-          sales: 319,
-          memberSince: "Mar 2023"
-        },
-        sampleInputs: [
-          "Create a cyberpunk cityscape at night with neon lights",
-          "Generate a serene watercolor landscape of mountains at sunset",
-          "Create a portrait in the style of Van Gogh"
-        ],
-        sampleOutputImages: [
-          "https://images.unsplash.com/photo-1573455494060-c5595004fb6c?q=80&w=2080&auto=format&fit=crop",
-          "https://images.unsplash.com/photo-1618331833071-ce81bd50d300?q=80&w=2080&auto=format&fit=crop",
-          "https://images.unsplash.com/photo-1614583225154-5fcdda07019e?q=80&w=2080&auto=format&fit=crop"
-        ],
-        sampleOutputs: [
-          "/imagine prompt: cyberpunk cityscape, night scene, neon signs illuminating wet streets, futuristic skyscrapers, flying cars, highly detailed, cinematic lighting, 8k resolution, trending on artstation, by Syd Mead and Blade Runner concept art --ar 16:9 --v 5 --s 750 --q 2",
-          "/imagine prompt: serene watercolor landscape, mountains at sunset, soft pastel colors, mist rising from valleys, delicate brushstrokes, impressionistic style, peaceful atmosphere, inspired by traditional Chinese painting --ar 16:9 --v 5",
-          "/imagine prompt: portrait in the style of Vincent Van Gogh, thick brushstrokes, vibrant colors, swirling patterns, emotional intensity, starry night background, oil on canvas texture, post-impressionist technique, museum quality --ar 1:1 --v 5 --s 750"
-        ],
-        systemPrompt: "You are an expert AI art prompt engineer with deep knowledge of visual aesthetics, composition, lighting, and the technical parameters of image generation AI models. Your specialty is crafting detailed prompts that produce consistent, high-quality results across different AI image generators. For each request, create a detailed prompt using this structure: [Subject description], [setting/environment], [lighting], [atmosphere], [style reference], [artistic medium], [composition], [color palette], [quality indicators], [negative prompts]. Add model-specific parameters at the end (--ar for aspect ratio, --v for version, etc). Analyze the user's request and expand it with relevant artistic details that will enhance the final image without changing the core concept. Always provide a complete, ready-to-use prompt that can be directly copied to an image generation AI.",
-        createdAt: "2023-10-12T11:27:39.822Z",
-        updatedAt: "2024-03-20T09:15:21.437Z",
-        heroImage: "https://nftnow.com/wp-content/uploads/2021/11/RTFKT-Clone-X-Header-1200x400.jpg"
-      };
+    const fetchPrompt = async () => {
+      if (!id) return;
       
-      setPrompt(samplePrompt);
-      setLoading(false);
-    }, 800);
-  }, [id]);
+      setLoading(true);
+      
+      try {
+        // Try to fetch from backend
+        const content = await contentService.getContent(id);
+        
+        // Transform backend data to match the expected format
+        const transformedPrompt = {
+          id: content.id,
+          title: content.title,
+          description: content.description,
+          longDescription: content.metadata?.long_description || content.description,
+          price: content.price,
+          rating: 4.5, // Default rating
+          reviews: 0, // Default reviews
+          model: content.llm_model,
+          supportedModels: [content.llm_model],
+          modelSettings: content.llm_settings || {
+            temperature: 0.7,
+            maxTokens: 1500,
+            topP: 0.9,
+            frequencyPenalty: 0.5,
+            presencePenalty: 0.5
+          },
+          category: content.metadata?.category || "General",
+          tags: content.metadata?.tags || [],
+          author: {
+            id: content.owner_id,
+            name: content.owner_id.substring(0, 8) + "...",
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${content.owner_id}`,
+            rating: 4.5,
+            sales: 0,
+            memberSince: new Date(content.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          },
+          sampleInputs: content.metadata?.sample_inputs || [],
+          sampleOutputImages: content.metadata?.sample_images || [],
+          sampleOutputs: content.metadata?.sample_outputs || [],
+          systemPrompt: content.prompt,
+          createdAt: content.created_at,
+          updatedAt: content.updated_at,
+          heroImage: content.preview_url || content.metadata?.sample_images?.[0] || "https://placehold.co/1200x400/252232/e2e8f0?text=Prompt"
+        };
+        
+        setPrompt(transformedPrompt);
+      } catch (error: any) {
+        console.error("Error fetching prompt:", error);
+        
+        // Fallback to sample data if backend fails or prompt not found
+        const samplePrompt = {
+          id: id,
+          title: "AI Art Style Creator",
+          description: "Generate beautiful images in various artistic styles with perfectly crafted prompts for Midjourney, DALL-E, or Stable Diffusion.",
+          longDescription: "This prompt is designed to help artists and designers create beautiful AI-generated images in any style they desire. The prompt guides the AI to create detailed, coherent images with consistent style elements, lighting, and composition. It works with all major image generation models including Midjourney, DALL-E, and Stable Diffusion. The prompt structure has been tested and refined through thousands of generations to produce the highest quality outputs with minimal prompt tweaking required.",
+          price: 29.99,
+          rating: 4.9,
+          reviews: 187,
+          model: "Universal",
+          supportedModels: ["Midjourney", "DALL-E 3", "Stable Diffusion"],
+          modelSettings: {
+            temperature: 0.7,
+            maxTokens: 1500,
+            topP: 0.9,
+            frequencyPenalty: 0.5,
+            presencePenalty: 0.5
+          },
+          category: "Art",
+          tags: ["art", "design", "image generation", "creative", "visual", "midjourney", "stable diffusion", "dalle"],
+          author: {
+            id: "author7",
+            name: "Art Whisperer",
+            avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuFzAIR675Zc4LuhA3P2bVCgE6zKcgJIu50Q&s",
+            rating: 4.9,
+            sales: 319,
+            memberSince: "Mar 2023"
+          },
+          sampleInputs: [
+            "Create a cyberpunk cityscape at night with neon lights",
+            "Generate a serene watercolor landscape of mountains at sunset",
+            "Create a portrait in the style of Van Gogh"
+          ],
+          sampleOutputImages: [
+            "https://images.unsplash.com/photo-1573455494060-c5595004fb6c?q=80&w=2080&auto=format&fit=crop",
+            "https://images.unsplash.com/photo-1618331833071-ce81bd50d300?q=80&w=2080&auto=format&fit=crop",
+            "https://images.unsplash.com/photo-1614583225154-5fcdda07019e?q=80&w=2080&auto=format&fit=crop"
+          ],
+          sampleOutputs: [
+            "/imagine prompt: cyberpunk cityscape, night scene, neon signs illuminating wet streets, futuristic skyscrapers, flying cars, highly detailed, cinematic lighting, 8k resolution, trending on artstation, by Syd Mead and Blade Runner concept art --ar 16:9 --v 5 --s 750 --q 2",
+            "/imagine prompt: serene watercolor landscape, mountains at sunset, soft pastel colors, mist rising from valleys, delicate brushstrokes, impressionistic style, peaceful atmosphere, inspired by traditional Chinese painting --ar 16:9 --v 5",
+            "/imagine prompt: portrait in the style of Vincent Van Gogh, thick brushstrokes, vibrant colors, swirling patterns, emotional intensity, starry night background, oil on canvas texture, post-impressionist technique, museum quality --ar 1:1 --v 5 --s 750"
+          ],
+          systemPrompt: "You are an expert AI art prompt engineer with deep knowledge of visual aesthetics, composition, lighting, and the technical parameters of image generation AI models. Your specialty is crafting detailed prompts that produce consistent, high-quality results across different AI image generators. For each request, create a detailed prompt using this structure: [Subject description], [setting/environment], [lighting], [atmosphere], [style reference], [artistic medium], [composition], [color palette], [quality indicators], [negative prompts]. Add model-specific parameters at the end (--ar for aspect ratio, --v for version, etc). Analyze the user's request and expand it with relevant artistic details that will enhance the final image without changing the core concept. Always provide a complete, ready-to-use prompt that can be directly copied to an image generation AI.",
+          createdAt: "2023-10-12T11:27:39.822Z",
+          updatedAt: "2024-03-20T09:15:21.437Z",
+          heroImage: "https://nftnow.com/wp-content/uploads/2021/11/RTFKT-Clone-X-Header-1200x400.jpg"
+        };
+        
+        setPrompt(samplePrompt);
+        
+        // Only show error toast if it's not a 404 (prompt not found)
+        if (error.status !== 404) {
+          toast({
+            title: "Could not load prompt",
+            description: "Showing sample data instead.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPrompt();
+  }, [id, toast]);
 
   const connectWallet = () => {
     setConnectingWallet(true);
