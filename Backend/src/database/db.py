@@ -121,6 +121,17 @@ class SQLiteDatabase:
         )
         ''')
         
+        # Migration: Add purchased_at column if it doesn't exist
+        try:
+            cursor.execute("SELECT purchased_at FROM purchases LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it
+            cursor.execute('''
+                ALTER TABLE purchases 
+                ADD COLUMN purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ''')
+            print("✓ Added purchased_at column to purchases table")
+        
         conn.commit()
         conn.close()
     
