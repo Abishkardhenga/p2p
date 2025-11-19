@@ -83,9 +83,18 @@ async def get_prompt(content_id: str):
 @router.get("/owner/{owner_id}", response_model=List[Content])
 async def get_prompt_by_owner(owner_id: str):
     """
-    Get content created by a specific owner
+    Get content created by a specific owner with sales statistics
     """
     content_list = db.get_content_by_owner(owner_id)
+    
+    # Add sales count to metadata for each content
+    for content in content_list:
+        sales_count = db.get_sales_by_content(content.id)
+        if not content.metadata:
+            content.metadata = {}
+        content.metadata['sales_count'] = sales_count
+        content.metadata['revenue'] = float(content.price) * sales_count
+    
     return content_list
 
 @router.get("/list/{n}", response_model=List[Content])

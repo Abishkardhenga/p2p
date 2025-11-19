@@ -104,8 +104,8 @@ export const useDashboardData = (userId: string | undefined): DashboardData => {
         id: content.id,
         title: content.title,
         category: content.metadata?.category || "Uncategorized",
-        sales: 0, // TODO: Get actual sales count from backend
-        revenue: "$0.00", // TODO: Calculate from purchases
+        sales: content.metadata?.sales_count || 0,
+        revenue: `$${(content.metadata?.revenue || 0).toFixed(2)}`,
         status: "Active",
         image: content.preview_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
         price: content.price,

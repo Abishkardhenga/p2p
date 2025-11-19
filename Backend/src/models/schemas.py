@@ -57,6 +57,7 @@ class Purchase(BaseModel):
     user_id: Union[str, int]
     content_id: Union[str, int]
     id: Optional[int] = None
+    purchased_at: Optional[str] = None
 
 
 class SearchQuery(BaseModel):

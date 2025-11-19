@@ -48,6 +48,7 @@ class InMemoryDatabase:
         return results
     
     def add_purchase(self, purchase: Purchase) -> Purchase:
+        from datetime import datetime
         if not purchase.id:
             # Find the highest ID and increment by 1
             max_id = 0
@@ -55,6 +56,11 @@ class InMemoryDatabase:
                 if p.id and isinstance(p.id, int) and p.id > max_id:
                     max_id = p.id
             purchase.id = max_id + 1
+        
+        # Set purchased_at if not provided
+        if not purchase.purchased_at:
+            purchase.purchased_at = datetime.utcnow().isoformat()
+        
         self.purchases.append(purchase)
         return purchase
     
@@ -109,6 +115,7 @@ class SQLiteDatabase:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT,
             content_id TEXT,
+            purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (content_id) REFERENCES content (id)
         )
@@ -299,6 +306,20 @@ class SQLiteDatabase:
         conn.close()
         
         return result[0] if result else 0
+    
+    def get_sales_by_content(self, content_id: str) -> int:
+        """Get number of purchases for a specific content"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT COUNT(id) FROM purchases WHERE content_id = ?",
+            (content_id,)
+        )
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result[0] if result else 0
     def get_n_items(self, n: int) -> List[Content]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -372,12 +393,17 @@ class SQLiteDatabase:
         return content_list
     
     def add_purchase(self, purchase: Purchase) -> Purchase:
+        from datetime import datetime
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        # Set purchased_at if not provided
+        if not purchase.purchased_at:
+            purchase.purchased_at = datetime.utcnow().isoformat()
+        
         cursor.execute(
-            "INSERT INTO purchases (user_id, content_id) VALUES (?, ?)",
-            (str(purchase.user_id), str(purchase.content_id))
+            "INSERT INTO purchases (user_id, content_id, purchased_at) VALUES (?, ?, ?)",
+            (str(purchase.user_id), str(purchase.content_id), purchase.purchased_at)
         )
         
         # Get the auto-incremented ID
@@ -393,28 +419,28 @@ class SQLiteDatabase:
         cursor = conn.cursor()
         
         cursor.execute(
-            "SELECT id, user_id, content_id FROM purchases WHERE user_id = ?",
+            "SELECT id, user_id, content_id, purchased_at FROM purchases WHERE user_id = ?",
             (str(user_id),)
         )
         results = cursor.fetchall()
         
         conn.close()
         
-        return [Purchase(id=result[0], user_id=result[1], content_id=result[2]) for result in results]
+        return [Purchase(id=result[0], user_id=result[1], content_id=result[2], purchased_at=result[3]) for result in results]
     
     def get_purchases_by_content(self, content_id: Union[str, int]) -> List[Purchase]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute(
-            "SELECT id, user_id, content_id FROM purchases WHERE content_id = ?",
+            "SELECT id, user_id, content_id, purchased_at FROM purchases WHERE content_id = ?",
             (str(content_id),)
         )
         results = cursor.fetchall()
         
         conn.close()
         
-        return [Purchase(id=result[0], user_id=result[1], content_id=result[2]) for result in results]
+        return [Purchase(id=result[0], user_id=result[1], content_id=result[2], purchased_at=result[3]) for result in results]
 
 
 # Choose the database implementation based on environment variable
