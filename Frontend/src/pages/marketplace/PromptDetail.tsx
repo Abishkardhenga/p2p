@@ -169,12 +169,19 @@ const PromptDetail = () => {
           has_bottle_id: !!content.metadata?.bottle_id,
           bottle_id: content.metadata?.bottle_id,
           has_encrypted_message: !!content.encrypted_message,
+          has_purchased: content.has_purchased,
         });
         
         // Store encrypted message if available
         if (content.encrypted_message) {
           setEncryptedMessage(content.encrypted_message);
           console.log("🔒 Encrypted message available:", content.encrypted_message.slice(0, 100) + "...");
+        }
+
+        // Set purchased state based on API response
+        if (content.has_purchased) {
+          setPurchased(true);
+          console.log("✅ User has already purchased this prompt");
         }
 
         setPrompt(transformedPrompt);
@@ -656,6 +663,77 @@ const PromptDetail = () => {
     } finally {
       setPurchaseLoading(false);
       setIsDecrypting(false);
+    }
+  };
+
+  const handleBuy = async () => {
+    if (!isWalletConnected || !walletAddress) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your SUI wallet first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const bottleId = prompt?.metadata?.bottle_id;
+    
+    console.log("🔍 Bottle ID from metadata:", bottleId);
+    console.log("🔍 Prompt metadata:", prompt?.metadata);
+    
+    if (!bottleId || bottleId === "") {
+      toast({
+        title: "Error",
+        description: "This prompt is not encrypted.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPurchaseLoading(true);
+
+    try {
+      toast({
+        title: "Processing Purchase",
+        description: "Adding you as recipient to the encrypted bottle...",
+      });
+
+      const { BackendSealService } = await import("@/services/seal.service");
+      const backendService = new BackendSealService(getFullnodeUrl("testnet"));
+
+      console.log("💰 Adding recipient to bottle:", bottleId, "for address:", walletAddress);
+      
+      // Add buyer as recipient to the bottle
+      await backendService.addRecipientToBottle(bottleId, walletAddress);
+      
+      console.log("✅ Recipient added successfully");
+
+      // Record the purchase in the backend
+      const { purchaseService } = await import("@/services/purchase.service");
+      
+      await purchaseService.createPurchase({
+        user_id: walletAddress,
+        content_id: prompt.id,
+      });
+      
+      console.log("✅ Purchase recorded in backend");
+
+      // Mark as purchased
+      setPurchased(true);
+
+      toast({
+        title: "Purchase Successful! 🎉",
+        description: "You now have access to this prompt. Click Decrypt to view it.",
+      });
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Failed to complete purchase. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchaseLoading(false);
     }
   };
 
@@ -1440,7 +1518,7 @@ const PromptDetail = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {purchased ? (
-                    <div className="bg-neon-green/10 border border-neon-green/30 rounded-md p-4 text-foreground">
+                    <div className="bg-neon-green/10 border border-neon-green/30 rounded-md p-4 text-foreground mb-3">
                       <div className="flex items-center mb-2">
                         <CheckCircle className="h-5 w-5 mr-2 text-neon-green" />
                         <span className="font-medium">
@@ -1452,29 +1530,69 @@ const PromptDetail = () => {
                       </p>
                     </div>
                   ) : (
+                    <div className="space-y-3 mb-3">
+                      <Button
+                        onClick={handleBuy}
+                        disabled={purchaseLoading || !isWalletConnected}
+                        className="w-full bg-neon-purple hover:bg-neon-purple/90 text-white py-6"
+                      >
+                        {purchaseLoading ? (
+                          <>
+                            <Loader className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="h-4 w-4 mr-2" />
+                            Buy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {purchased && (
                     <>
-                      {isWalletConnected ? (
-                        <Button
-                          onClick={handleBuyAndDecrypt}
-                          disabled={purchaseLoading}
-                          className="w-full bg-neon-purple hover:bg-neon-purple/90 text-white py-6"
-                        >
-                          {purchaseLoading ? (
-                            <>
-                              <Loader className="mr-2 h-4 w-4 animate-spin" />
-                              Processing Purchase...
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="mr-2 h-4 w-4" />
-                              Buy & Decrypt Prompt
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <div className="w-full">
-                          <ConnectButton className="w-full" />
+                      <Button
+                        onClick={() => setShowDecryptDialog(true)}
+                        disabled={isDecryptingPrompt}
+                        variant="outline"
+                        className="w-full py-6"
+                      >
+                        {isDecryptingPrompt ? (
+                          <>
+                            <Loader className="h-4 w-4 mr-2 animate-spin" />
+                            Decrypting...
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="h-4 w-4 mr-2" />
+                            Decrypt
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Show decrypted system prompt right below decrypt button */}
+                      {systemPrompt && (
+                        <div className="mt-4 bg-background rounded-md border border-border p-4">
+                          <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-neon-purple" />
+                            Decrypted Prompt
+                          </h4>
+                          <div className="bg-muted/50 rounded-md p-3">
+                            <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-60 font-mono text-muted-foreground">
+                              {systemPrompt}
+                            </pre>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-3 w-full"
+                            onClick={() => handleCopyToClipboard(systemPrompt)}
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy Prompt
+                          </Button>
                         </div>
                       )}
                     </>
@@ -1587,23 +1705,7 @@ const PromptDetail = () => {
                       </div>
                     </div>
                     
-                    {/* Show system prompt only if purchased */}
-                    {purchased && (
-                      <>
-                        {isDecrypting ? (
-                          <div className="w-full p-4 bg-background rounded-md border border-border flex items-center justify-center">
-                            <Loader className="h-5 w-5 animate-spin mr-2" />
-                            <span className="text-sm text-muted-foreground">Decrypting your prompt...</span>
-                          </div>
-                        ) : (
-                          <div className="bg-background rounded-md border border-border p-3 w-full">
-                            <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-60 font-mono text-muted-foreground">
-                              {systemPrompt}
-                            </pre>
-                          </div>
-                        )}
-                      </>
-                    )}
+
                   </CardFooter>
                 )}
               </Card>

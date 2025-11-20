@@ -91,11 +91,13 @@ async def get_prompt(content_id: str, user_id: Optional[str] = None):
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
     
-    # Check if user has purchased this content
+    # Check if user has purchased this content or is the author
     has_purchased = None
     if user_id:
-        purchases = db.get_purchases_by_user(user_id)
-        has_purchased = any(str(p.content_id) == str(content_id) for p in purchases)
+        has_purchased = str(content.owner_id) == str(user_id)
+        if not has_purchased:
+            purchases = db.get_purchases_by_user(user_id)
+            has_purchased = any(str(p.content_id) == str(content_id) for p in purchases)
     
     # Convert Content to ContentWithPurchaseStatus
     return ContentWithPurchaseStatus(
