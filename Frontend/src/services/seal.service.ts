@@ -165,7 +165,7 @@ export class BackendSealService {
   ): Promise<void> {
     try {
       const tx = new Transaction();
-
+      tx.setGasBudget(100000000);
       tx.moveCall({
         target: `${PACKAGE_ID}::core::set_recipient`,
         arguments: [
