@@ -26,6 +26,7 @@ class Content(BaseModel):
     metadata: Optional[Dict] = None
     prompt: Optional[str] = None
     preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
+    encrypted_message: Optional[str] = None
 
 class ContentCreate(BaseModel):
     content_id: Optional[str] = None
@@ -38,6 +39,7 @@ class ContentCreate(BaseModel):
     metadata: Optional[Dict] = {"content_type": PromptType.TEXT} # image or text
     prompt: Optional[str] = None
     preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
+    encrypted_message: Optional[str] = None
 
 
 class ImageContentCreate(BaseModel):
@@ -78,6 +80,22 @@ class TestImageRequest(BaseModel):
     llm_settings: Optional[Dict] = DEFAULT_IMAGE_SETTINGS
     content_id: Optional[str] = None
     user_id: Optional[str] = None
+
+
+class ContentWithPurchaseStatus(BaseModel):
+    id: Optional[str] = None
+    owner_id: str
+    title: str
+    description: str
+    llm_model: str = DEFAULT_LLM_MODEL
+    llm_settings: Dict = DEFAULT_LLM_SETTINGS
+    price: Union[str, float] = 0.0
+    system_prompt: Optional[str] = None
+    metadata: Optional[Dict] = None
+    prompt: Optional[str] = None
+    preview_url: Optional[str] = "https://res.cloudinary.com/dudllq7gi/image/upload/v1745486617/full_logo_crystal_jyach5.png"
+    encrypted_message: Optional[str] = None
+    has_purchased: Optional[bool] = None
 
 
 class SearchResult(BaseModel):

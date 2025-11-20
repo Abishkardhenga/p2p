@@ -20,6 +20,7 @@ import { SuiClient } from "@mysten/sui/client"
 import { getFullnodeUrl } from "@mysten/sui.js/client"
 
 import Test from "./pages/test"
+import SealEncryption from "./pages/SealEncryption"
 
 const queryClient = new QueryClient()
 const FULLNODE_URL = "https://fullnode.devnet.sui.io/"
@@ -35,8 +36,8 @@ const networks = {
 const App = () => (
   <ZKLoginProvider client={suiClient}>
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networks} defaultNetwork="devnet">
-        <WalletProvider>
+      <SuiClientProvider networks={networks} defaultNetwork="testnet">
+        <WalletProvider autoConnect>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/*" element={<Dashboard />} />
                 <Route path="/test" element={<Test />} />
+                <Route path="/seal" element={<SealEncryption />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from typing import List
+from typing import List, Optional, Union
 import uuid
 
 from models.schemas import (
-    Content, ContentCreate, ImageContentCreate, SearchQuery, SearchResult
+    Content, ContentCreate, ImageContentCreate, SearchQuery, SearchResult, ContentWithPurchaseStatus
 )
 from database.db import db
 from services.llm_service import llm_service
@@ -19,6 +19,14 @@ async def create_prompt(content_data: ContentCreate):
     note: metadata["content_type"] is either "image" or "text"
     """
     print(f"\n\n add_content: owner_id: {content_data.owner_id}")
+    
+    # Log bottle_id if present
+    if content_data.metadata and content_data.metadata.get("bottle_id"):
+        print(f"🔐 Bottle ID received: {content_data.metadata.get('bottle_id')}")
+    
+    # Log encrypted message if present
+    if content_data.encrypted_message:
+        print(f"🔒 Encrypted message received: {content_data.encrypted_message[:100]}...")
     
     # Create user if they don't exist
     user = db.get_user(content_data.owner_id)
@@ -46,7 +54,8 @@ async def create_prompt(content_data: ContentCreate):
         price=content_data.price,
         metadata=content_data.metadata or {},
         prompt=content_data.prompt,
-        preview_url=content_data.preview_url
+        preview_url=content_data.preview_url,
+        encrypted_message=content_data.encrypted_message
     )
     
     saved_content = db.add_content(content)
@@ -70,15 +79,40 @@ async def list_model_names():
     print('list_model_names: ', llm_service.models)
     return llm_service.models
 
-@router.get("/{content_id}", response_model=Content)
-async def get_prompt(content_id: str):
+@router.get("/{content_id}", response_model=ContentWithPurchaseStatus)
+async def get_prompt(content_id: str, user_id: Optional[str] = None):
     """
     Get content details by ID
+    
+    Optional query parameter:
+    - user_id: If provided, includes has_purchased boolean indicating if user has purchased this content
     """
     content = db.get_content(content_id)
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
-    return content
+    
+    # Check if user has purchased this content
+    has_purchased = None
+    if user_id:
+        purchases = db.get_purchases_by_user(user_id)
+        has_purchased = any(str(p.content_id) == str(content_id) for p in purchases)
+    
+    # Convert Content to ContentWithPurchaseStatus
+    return ContentWithPurchaseStatus(
+        id=content.id,
+        owner_id=content.owner_id,
+        title=content.title,
+        description=content.description,
+        llm_model=content.llm_model,
+        llm_settings=content.llm_settings,
+        price=content.price,
+        system_prompt=content.system_prompt,
+        metadata=content.metadata,
+        prompt=content.prompt,
+        preview_url=content.preview_url,
+        encrypted_message=content.encrypted_message,
+        has_purchased=has_purchased
+    )
 
 @router.get("/owner/{owner_id}", response_model=List[Content])
 async def get_prompt_by_owner(owner_id: str):
@@ -111,6 +145,14 @@ async def update_prompt(content_id: str, content_data: ContentCreate):
     """
     print(f"\n\n update_content: content_id: {content_id}, owner_id: {content_data.owner_id}")
     
+    # Log bottle_id if present
+    if content_data.metadata and content_data.metadata.get("bottle_id"):
+        print(f"🔐 Bottle ID received: {content_data.metadata.get('bottle_id')}")
+    
+    # Log encrypted message if present
+    if content_data.encrypted_message:
+        print(f"🔒 Encrypted message received: {content_data.encrypted_message[:100]}...")
+    
     # Check if content exists
     existing_content = db.get_content(content_id)
     if not existing_content:
@@ -131,7 +173,8 @@ async def update_prompt(content_id: str, content_data: ContentCreate):
         price=content_data.price,
         metadata=content_data.metadata or {},
         prompt=content_data.prompt,
-        preview_url=content_data.preview_url
+        preview_url=content_data.preview_url,
+        encrypted_message=content_data.encrypted_message
     )
     
     updated_content = db.update_content(content)

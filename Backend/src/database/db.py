@@ -105,7 +105,8 @@ class SQLiteDatabase:
             system_prompt TEXT,
             metadata TEXT,
             prompt TEXT,
-            preview_url TEXT
+            preview_url TEXT,
+            encrypted_message TEXT
         )
         ''')
         
@@ -131,6 +132,17 @@ class SQLiteDatabase:
                 ADD COLUMN purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ''')
             print("✓ Added purchased_at column to purchases table")
+        
+        # Migration: Add encrypted_message column if it doesn't exist
+        try:
+            cursor.execute("SELECT encrypted_message FROM content LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it
+            cursor.execute('''
+                ALTER TABLE content 
+                ADD COLUMN encrypted_message TEXT
+            ''')
+            print("✓ Added encrypted_message column to content table")
         
         conn.commit()
         conn.close()
@@ -181,13 +193,14 @@ class SQLiteDatabase:
             """
             INSERT OR REPLACE INTO content (
                 id, owner_id, title, description, llm_model, llm_settings, 
-                price, system_prompt, metadata, prompt, preview_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                price, system_prompt, metadata, prompt, preview_url, encrypted_message
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 content.id, content.owner_id, content.title, content.description, content.llm_model,
                 json.dumps(content.llm_settings), float(content.price), 
-                content.system_prompt, json.dumps(content.metadata or {}), content.prompt, content.preview_url
+                content.system_prompt, json.dumps(content.metadata or {}), content.prompt, content.preview_url,
+                content.encrypted_message
             )
         )
         
@@ -207,14 +220,14 @@ class SQLiteDatabase:
             UPDATE content 
             SET owner_id = ?, title = ?, description = ?, llm_model = ?, 
                 llm_settings = ?, price = ?, system_prompt = ?, metadata = ?, 
-                prompt = ?, preview_url = ?
+                prompt = ?, preview_url = ?, encrypted_message = ?
             WHERE id = ?
             """,
             (
                 content.owner_id, content.title, content.description, content.llm_model,
                 json.dumps(content.llm_settings), float(content.price), 
                 content.system_prompt, json.dumps(content.metadata or {}), 
-                content.prompt, content.preview_url, content.id
+                content.prompt, content.preview_url, content.encrypted_message, content.id
             )
         )
         
@@ -230,7 +243,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata, prompt, preview_url
+                   price, system_prompt, metadata, prompt, preview_url, encrypted_message
             FROM content WHERE id = ?
             """, 
             (content_id,)
@@ -243,10 +256,12 @@ class SQLiteDatabase:
             print(f"\n\n got content: {result}")
             metadata = json.loads(result[8]) if result[8] else None
             preview_url = result[10] if len(result) > 10 else None
+            encrypted_message = result[11] if len(result) > 11 else None
             
             print(f"📦 Parsed metadata: {metadata}")
             print(f"📸 Sample images in metadata: {metadata.get('sample_images') if metadata else None}")
             print(f"🖼️ Preview URL: {preview_url}")
+            print(f"🔐 Encrypted message: {encrypted_message[:50] if encrypted_message else None}...")
             
             return Content(
                 id=result[0],
@@ -259,7 +274,8 @@ class SQLiteDatabase:
                 system_prompt=result[7],
                 metadata=metadata,
                 prompt=result[9] if result[9] else None,
-                preview_url=preview_url
+                preview_url=preview_url,
+                encrypted_message=encrypted_message
             )
         return None
     
@@ -270,7 +286,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata, prompt, preview_url
+                   price, system_prompt, metadata, prompt, preview_url, encrypted_message
             FROM content WHERE owner_id = ?
             """,
             (owner_id,)
@@ -294,7 +310,8 @@ class SQLiteDatabase:
                 system_prompt=result[7],
                 metadata=json.loads(result[8]) if result[8] else None,
                 prompt=result[9] if result[9] else None,
-                preview_url=result[10] if len(result) > 10 else None
+                preview_url=result[10] if len(result) > 10 else None,
+                encrypted_message=result[11] if len(result) > 11 else None
             ))
         
         return content_list
@@ -338,7 +355,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata, prompt, preview_url
+                   price, system_prompt, metadata, prompt, preview_url, encrypted_message
             FROM content
             LIMIT ?
             """,
@@ -361,7 +378,8 @@ class SQLiteDatabase:
                 system_prompt=result[7],
                 metadata=json.loads(result[8]) if result[8] else None,
                 prompt=result[9] if result[9] else None,
-                preview_url=result[10] if len(result) > 10 else None
+                preview_url=result[10] if len(result) > 10 else None,
+                encrypted_message=result[11] if len(result) > 11 else None
             ))
         
         return content_list
@@ -375,7 +393,7 @@ class SQLiteDatabase:
         cursor.execute(
             """
             SELECT id, owner_id, title, description, llm_model, llm_settings,
-                   price, system_prompt, metadata, prompt, preview_url
+                   price, system_prompt, metadata, prompt, preview_url, encrypted_message
             FROM content 
             WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
             """, 
@@ -398,7 +416,8 @@ class SQLiteDatabase:
                 system_prompt=result[7],
                 metadata=json.loads(result[8]) if result[8] else None,
                 prompt=result[9] if result[9] else None,
-                preview_url=result[10] if len(result) > 10 else None
+                preview_url=result[10] if len(result) > 10 else None,
+                encrypted_message=result[11] if len(result) > 11 else None
             ))
         
         return content_list

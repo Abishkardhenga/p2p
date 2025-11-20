@@ -24,7 +24,6 @@ export const purchaseService = {
   createPurchase: async (purchaseData: {
     user_id: string;
     content_id: string;
-    price: number;
   }): Promise<Purchase> => {
     return apiPost("/purchase/", purchaseData);
   },

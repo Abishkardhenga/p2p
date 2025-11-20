@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useZKLogin } from "react-sui-zk-login-kit"
-import { useCurrentAccount } from "@mysten/dapp-kit"
+import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit"
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -30,8 +30,22 @@ const Navbar = () => {
 
   const { encodedJwt, userSalt, setUserSalt, address, logout } = useZKLogin()
   const account = useCurrentAccount()
+  const { mutate: disconnectWallet } = useDisconnectWallet()
+  
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
+  }
+
+  const handleDisconnect = () => {
+    // Disconnect Sui wallet if connected
+    if (account?.address) {
+      disconnectWallet()
+    }
+    // Logout zkLogin if connected
+    if (address && logout) {
+      logout()
+    }
+    setIsLoggedIn(false)
   }
 
   const isActive = (path: string) => {
@@ -165,10 +179,7 @@ const Navbar = () => {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-neon-purple/20" />
                       <DropdownMenuItem
-                        onClick={() => {
-                          logout && logout()
-                          setIsLoggedIn(false)
-                        }}
+                        onClick={handleDisconnect}
                         className="text-red-400 hover:text-red-300 focus:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10"
                       >
                         <LogOut className="h-4 w-4 mr-2" />

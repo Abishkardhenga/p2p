@@ -128,3 +128,5 @@ dmypy.json
 
 # Database
 *.sqlite3
+
+**.archive

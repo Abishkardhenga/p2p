@@ -28,19 +28,22 @@ import {
 } from "@/components/ui/card" 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
-import { Info, PlusCircle, Trash } from "lucide-react"
+import { Info, PlusCircle, Trash, Lock, Loader2 } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { getFullnodeUrl } from "@mysten/sui.js/client"
+import { useCurrentAccount } from "@mysten/dapp-kit"
 
 const SellPrompt = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { toast } = useToast()
   const { address } = useZKLogin()
+  const currentAccount = useCurrentAccount()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
@@ -56,6 +59,8 @@ const SellPrompt = () => {
     testPrice: 1.99, // Add separate testPrice field
     systemPrompt: "",
     userPrompt: "",
+    bottleId: "", // Add bottle_id field
+    encryptedData: null as Uint8Array | null, // Store encrypted data
     sampleInputs: [
       "A minimal and surreal design with a color scheme of dreamy pastels and soft gradients; using woodcut and color processing printing techniques with surreal details; inspired by surrealism and dreamlike art; the focus is lovers; mood is surreal and introspective. --v 6.1",
     ],
@@ -77,6 +82,7 @@ const SellPrompt = () => {
   const [activeTab, setActiveTab] = useState("details")
   const [imageSizes, setImageSizes] = useState<Record<number, string>>({})
   const [imageFiles, setImageFiles] = useState<Record<number, File>>({})
+  const [isEncrypting, setIsEncrypting] = useState(false)
 
   // Load existing prompt data when editing
   useEffect(() => {
@@ -101,6 +107,8 @@ const SellPrompt = () => {
             testPrice: content.metadata?.test_price || content.price * 0.1 || 1.99,
             systemPrompt: content.prompt || "",
             userPrompt: content.metadata?.user_prompt || "",
+            bottleId: content.metadata?.bottle_id || "",
+            encryptedData: null, // Will be set when re-encrypting
             sampleInputs: content.metadata?.sample_inputs || [""],
             sampleOutputs: content.metadata?.sample_outputs || [""],
             sampleImages: content.metadata?.sample_images || [""],
@@ -333,17 +341,89 @@ const SellPrompt = () => {
     })
   }
 
+  const handleEncryptPrompt = async () => {
+    // Get wallet address from either ZK Login or Sui wallet
+    const walletAddress = address || currentAccount?.address
+
+    if (!formData.systemPrompt.trim()) {
+      toast({
+        title: "Empty Prompt",
+        description: "Please enter a system prompt to encrypt",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!walletAddress) {
+      toast({
+        title: "Authentication Required",
+        description: "Please connect your wallet to encrypt your prompt",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsEncrypting(true)
+    try {
+      toast({
+        title: "Starting Encryption",
+        description: "Encrypting your prompt with backend account...",
+      })
+
+      // Import the backend service
+      const { BackendSealService } = await import("@/services/seal.service")
+      const backendService = new BackendSealService(getFullnodeUrl("testnet"))
+
+      toast({
+        title: "Encrypting Prompt",
+        description: "Backend is handling encryption automatically...",
+      })
+
+      // Encrypt using backend account (no specific recipient yet)
+      // Recipients will be added when buyers purchase
+      const backendAddress = backendService.getBackendAddress()
+      const { bottleId, encryptedData } = await backendService.encryptPromptQuick(
+        formData.systemPrompt,
+        backendAddress // Encrypt for backend account initially
+      )
+
+      // Update form data with bottle ID and encrypted data
+      setFormData((prev) => ({
+        ...prev,
+        bottleId: bottleId,
+        encryptedData: encryptedData,
+      }))
+
+      toast({
+        title: "Success! ✨",
+        description: `Prompt encrypted! Bottle ID: ${bottleId.slice(0, 8)}...`,
+      })
+    } catch (error: any) {
+      console.error("Encryption error:", error)
+      toast({
+        title: "Encryption Failed",
+        description: error.message || "Failed to encrypt prompt",
+        variant: "destructive",
+      })
+    } finally {
+      setIsEncrypting(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Get wallet address from either ZK Login or Sui wallet
+    const walletAddress = address || currentAccount?.address
+
     console.log("Form submitted with data:", formData);
-    console.log("User address:", address);
+    console.log("User address:", walletAddress);
 
     // Check if user is logged in
-    if (!address) {
+    if (!walletAddress) {
       toast({
         title: "Authentication Required",
-        description: "Please login with ZK Login to submit a prompt.",
+        description: "Please connect your wallet to submit a prompt.",
         variant: "destructive",
       })
       navigate("/login")
@@ -474,9 +554,14 @@ const SellPrompt = () => {
       const filteredSampleOutputs = formData.sampleOutputs.filter(output => output && output.trim() !== "");
       const filteredSampleImages = uploadedImageUrls.filter(image => image && image.trim() !== "" && !image.startsWith("blob:"));
       
+      // Convert encrypted data to base64 if available
+      const encryptedMessageBase64 = formData.encryptedData 
+        ? btoa(String.fromCharCode.apply(null, Array.from(formData.encryptedData)))
+        : undefined
+
       const contentData = {
         content_id: walrusContentId,
-        owner_id: address, // Use ZK Login address as owner_id
+        owner_id: walletAddress, // Use wallet address (ZK Login or Sui wallet)
         title: formData.title,
         description: formData.description,
         llm_model: formData.model || "gpt-3.5-turbo", // Default model if not specified
@@ -497,20 +582,33 @@ const SellPrompt = () => {
           sample_inputs: filteredSampleInputs,
           sample_outputs: filteredSampleOutputs,
           sample_images: filteredSampleImages,
+          bottle_id: formData.bottleId || "", // Add bottle_id to metadata
+          user_prompt: formData.userPrompt,
         },
         prompt: formData.systemPrompt,
         preview_url: filteredSampleImages[0] || "",
+        encrypted_message: encryptedMessageBase64, // Send encrypted message as base64 if available
       }
       
       console.log("💾 Saving content data:", {
         ...contentData,
+        encrypted_message: contentData.encrypted_message ? `[Base64 Encrypted Data - ${contentData.encrypted_message.length} chars]` : undefined,
         metadata: {
           ...contentData.metadata,
           sample_inputs_count: contentData.metadata.sample_inputs.length,
           sample_outputs_count: contentData.metadata.sample_outputs.length,
           sample_images_count: contentData.metadata.sample_images.length,
+          bottle_id: contentData.metadata.bottle_id ? `${contentData.metadata.bottle_id.slice(0, 8)}...` : "Not encrypted",
         }
       })
+      
+      if (contentData.metadata.bottle_id) {
+        console.log("🔐 Bottle ID being sent to backend:", contentData.metadata.bottle_id)
+      }
+      
+      if (contentData.encrypted_message) {
+        console.log("🔒 Encrypted message being sent to backend (base64):", contentData.encrypted_message.slice(0, 100) + "...")
+      }
 
       // Submit to backend
       let response;
@@ -858,6 +956,61 @@ const SellPrompt = () => {
                       This is the complete prompt that buyers will receive after
                       purchase.
                     </p>
+                  </div>
+
+                  {/* Bottle ID and Encrypt Button */}
+                  <div className="space-y-3 p-4 bg-purple-500/5 border border-purple-300/30 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="bottleId" className="text-sm font-medium">
+                        Bottle ID (Encryption)
+                      </Label>
+                      {formData.bottleId && (
+                        <span className="text-xs text-green-500 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          Encrypted
+                        </span>
+                      )}
+                    </div>
+                    <Input
+                      id="bottleId"
+                      name="bottleId"
+                      placeholder="Bottle ID will appear here after encryption"
+                      value={formData.bottleId}
+                      readOnly
+                      className="font-mono text-xs bg-background/50"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleEncryptPrompt}
+                      disabled={isEncrypting || !formData.systemPrompt.trim()}
+                      variant="outline"
+                      className="w-full border-purple-500 text-purple-400 hover:bg-purple-500/10"
+                    >
+                      {isEncrypting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Encrypting...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4 mr-2" />
+                          {formData.bottleId ? "Re-encrypt Prompt" : "Encrypt Prompt"}
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                      Click to encrypt your system prompt using SEAL. The bottle ID will be stored with your prompt.
+                      <br />
+                      <strong>Important:</strong> Encryption uses a backend account, which allows automatic buyer access when purchased.
+                    </p>
+                    {!formData.bottleId && formData.systemPrompt.trim() && (
+                      <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-800 dark:text-amber-200">
+                        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Recommended: Encrypt your prompt before submitting to protect your intellectual property.
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">

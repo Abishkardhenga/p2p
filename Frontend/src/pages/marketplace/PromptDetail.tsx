@@ -5,10 +5,20 @@ import MainLayout from "@/components/layout/MainLayout";
 import { contentService } from "@/services/content.service";
 import { testService } from "@/services/test.service";
 import { useZKLogin } from "react-sui-zk-login-kit";
+import { useCurrentAccount, ConnectButton, useSignPersonalMessage } from "@mysten/dapp-kit";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
@@ -35,11 +45,23 @@ import {
   Code,
   Lock,
   Loader,
+  Unlock,
+  AlertCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { getFullnodeUrl } from "@mysten/sui.js/client";
+import { SuiClient } from "@mysten/sui/client";
+import { SessionKey } from "@mysten/seal";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { fromBase64, toBase64 } from "@mysten/sui/utils";
+import { decryptData } from "@/utils/seal/decrypt";
+import { SealClient } from "@mysten/seal";
 
 const PromptDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { address } = useZKLogin();
+  const currentAccount = useCurrentAccount();
   const [prompt, setPrompt] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userInput, setUserInput] = useState("");
@@ -50,10 +72,39 @@ const PromptDetail = () => {
   const [purchased, setPurchased] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
   const [remainingCredits, setRemainingCredits] = useState(5);
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
-  const [connectingWallet, setConnectingWallet] = useState(false);
+  const [decryptedPrompt, setDecryptedPrompt] = useState("");
+  const [isDecrypting, setIsDecrypting] = useState(false);
+  const [encryptedMessage, setEncryptedMessage] = useState("");
+  const [showDecryptDialog, setShowDecryptDialog] = useState(false);
+  const [privateKey, setPrivateKey] = useState("");
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [isDecryptingPrompt, setIsDecryptingPrompt] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  
+  // Check if wallet is connected (either ZK Login or Sui wallet)
+  const walletAddress = address || currentAccount?.address;
+  const isWalletConnected = !!walletAddress;
+  
+  // Initialize Sui client for fetching bottle data
+  const suiClient = new SuiClient({ url: getFullnodeUrl("testnet") });
+  
+  // SEAL Configuration
+  const PACKAGE_ID = "0x71ac54b16bcfcb9ee4eadc343206885c816a79f0fe4621cf78dd028c65325818";
+  const KEY_SERVER_LIST_TESTNET = [
+    "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75",
+    "0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8",
+  ];
+  
+  const sealClient = new SealClient({
+    suiClient: suiClient as any,
+    serverConfigs: KEY_SERVER_LIST_TESTNET.map((id: string) => ({
+      objectId: id,
+      weight: 1,
+    })),
+    verifyKeyServers: true,
+  });
 
   // Fetch prompt data from backend
   useEffect(() => {
@@ -63,8 +114,8 @@ const PromptDetail = () => {
       setLoading(true);
 
       try {
-        // Try to fetch from backend
-        const content = await contentService.getContent(id);
+        // Try to fetch from backend with user_id if wallet is connected
+        const content = await contentService.getContent(id, walletAddress);
 
         // Transform backend data to match the expected format
         const transformedPrompt = {
@@ -87,6 +138,7 @@ const PromptDetail = () => {
           },
           category: content.metadata?.category || "General",
           tags: content.metadata?.tags || [],
+          metadata: content.metadata || {}, // Include full metadata
           author: {
             id: content.owner_id,
             name: content.owner_id.substring(0, 8) + "...",
@@ -101,6 +153,7 @@ const PromptDetail = () => {
           sampleOutputImages: content.metadata?.sample_images || [],
           sampleOutputs: content.metadata?.sample_outputs || [],
           systemPrompt: content.prompt,
+          encryptedMessage: content.encrypted_message,
           createdAt: content.created_at,
           updatedAt: content.updated_at,
           heroImage:
@@ -108,6 +161,21 @@ const PromptDetail = () => {
             content.metadata?.sample_images?.[0] ||
             "https://placehold.co/1200x400/252232/e2e8f0?text=Prompt",
         };
+        
+        // Log bottle_id and encrypted message for debugging
+        console.log("📦 Prompt loaded:", {
+          id: content.id,
+          title: content.title,
+          has_bottle_id: !!content.metadata?.bottle_id,
+          bottle_id: content.metadata?.bottle_id,
+          has_encrypted_message: !!content.encrypted_message,
+        });
+        
+        // Store encrypted message if available
+        if (content.encrypted_message) {
+          setEncryptedMessage(content.encrypted_message);
+          console.log("🔒 Encrypted message available:", content.encrypted_message.slice(0, 100) + "...");
+        }
 
         setPrompt(transformedPrompt);
       } catch (error: any) {
@@ -192,19 +260,7 @@ const PromptDetail = () => {
     };
 
     fetchPrompt();
-  }, [id, toast]);
-
-  const connectWallet = () => {
-    setConnectingWallet(true);
-    setTimeout(() => {
-      setIsWalletConnected(true);
-      setConnectingWallet(false);
-      toast({
-        title: "Wallet connected successfully",
-        description: "Your SUI wallet is now connected to your account.",
-      });
-    }, 1500);
-  };
+  }, [id, toast, walletAddress]);
 
   const handleTestPrompt = async () => {
     if (!userInput.trim()) {
@@ -305,8 +361,161 @@ const PromptDetail = () => {
     }
   };
 
-  const handlePurchase = () => {
-    if (!isWalletConnected) {
+  // Helper function to convert hex string to Uint8Array
+  const hexToBytes = (hex: string): Uint8Array => {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    }
+    return bytes;
+  };
+
+  const handleDecryptPrompt = async () => {
+    if (!privateKey.trim()) {
+      toast({
+        title: "Private Key Required",
+        description: "Please enter your private key to decrypt",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const bottleId = prompt?.metadata?.bottle_id;
+    if (!bottleId) {
+      toast({
+        title: "Error",
+        description: "Bottle ID not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDecryptingPrompt(true);
+    try {
+      toast({
+        title: "Decrypting",
+        description: "Creating session key and decrypting your prompt...",
+      });
+
+      // Create keypair from private key
+      let keypair: Ed25519Keypair;
+      try {
+        if (privateKey.startsWith("suiprivkey")) {
+          keypair = Ed25519Keypair.fromSecretKey(privateKey);
+        } else if (privateKey.startsWith("0x") || /^[0-9a-fA-F]+$/.test(privateKey)) {
+          const cleanKey = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
+          const keyBytes = hexToBytes(cleanKey);
+          keypair = Ed25519Keypair.fromSecretKey(keyBytes);
+        } else {
+          const keyBytes = fromBase64(privateKey);
+          keypair = Ed25519Keypair.fromSecretKey(keyBytes);
+        }
+      } catch (e: any) {
+        throw new Error(`Invalid private key format: ${e.message}. Supported formats: Bech32 (suiprivkey1...), Hex (0x... or without), Base64`);
+      }
+
+      // Verify the address matches
+      const derivedAddress = keypair.toSuiAddress();
+      if (derivedAddress !== walletAddress) {
+        throw new Error(
+          `Private key address (${derivedAddress.slice(0, 8)}...) doesn't match wallet address (${walletAddress?.slice(0, 8)}...)`
+        );
+      }
+
+      // Create session key
+      console.log("🔑 Creating session key for address:", walletAddress);
+      const sessionKey = await SessionKey.create({
+        address: walletAddress!,
+        packageId: PACKAGE_ID,
+        ttlMin: 10,
+        signer: keypair,
+        suiClient,
+      });
+      console.log("✅ Session key created successfully");
+
+      // Get encrypted data from state or fetch from blockchain
+      let dataToDecrypt = encryptedMessage ? fromBase64(encryptedMessage) : null;
+
+      if (!dataToDecrypt) {
+        // Fetch from blockchain
+        const bottleObject = await suiClient.getObject({
+          id: bottleId,
+          options: { showContent: true },
+        });
+
+        if (!bottleObject.data) {
+          throw new Error("Bottle not found on blockchain");
+        }
+
+        const content = bottleObject.data.content;
+        if (content && "fields" in content) {
+          const fields = content.fields as any;
+          const possibleFields = ["message", "data", "encrypted_data", "encrypted_message", "content", "bytes"];
+
+          for (const fieldName of possibleFields) {
+            if (fields[fieldName]) {
+              try {
+                if (Array.isArray(fields[fieldName])) {
+                  dataToDecrypt = new Uint8Array(fields[fieldName]);
+                } else if (fields[fieldName].bytes) {
+                  dataToDecrypt = new Uint8Array(fields[fieldName].bytes);
+                } else if (typeof fields[fieldName] === "string") {
+                  dataToDecrypt = fromBase64(fields[fieldName]);
+                } else {
+                  dataToDecrypt = new Uint8Array(fields[fieldName]);
+                }
+                break;
+              } catch (e) {
+                continue;
+              }
+            }
+          }
+        }
+      }
+
+      if (!dataToDecrypt) {
+        throw new Error("Could not find encrypted data");
+      }
+
+      // Decrypt data
+      console.log("🔓 Starting decryption with bottle ID:", bottleId);
+      const decrypted = await decryptData(
+        sessionKey,
+        PACKAGE_ID,
+        suiClient,
+        sealClient,
+        bottleId,
+        dataToDecrypt
+      );
+
+      if (decrypted) {
+        const decryptedText = new TextDecoder().decode(decrypted);
+        console.log("✅ Decryption successful");
+        setSystemPrompt(decryptedText);
+        setShowDecryptDialog(false);
+        setPrivateKey("");
+
+        toast({
+          title: "Success! 🎉",
+          description: "Prompt decrypted successfully",
+        });
+      } else {
+        throw new Error("Decryption returned empty result");
+      }
+    } catch (error: any) {
+      console.error("❌ Decryption error:", error);
+      toast({
+        title: "Decryption Failed",
+        description: error.message || "Failed to decrypt prompt",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDecryptingPrompt(false);
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!isWalletConnected || !walletAddress) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your SUI wallet first.",
@@ -315,19 +524,213 @@ const PromptDetail = () => {
       return;
     }
 
-    setPurchaseLoading(true);
+    console.log("💰 Purchasing with wallet:", walletAddress);
+    console.log("📦 Prompt metadata:", prompt?.metadata);
+    console.log("📦 Full prompt object:", prompt);
 
-    // Simulate API call to purchase the prompt
-    setTimeout(() => {
-      setPurchaseLoading(false);
-      setPurchased(true);
-      setSystemPrompt(prompt.systemPrompt);
+    // Check if prompt has bottle_id (encrypted)
+    const bottleId = prompt?.metadata?.bottle_id;
+    
+    console.log("🔍 Bottle ID from metadata:", bottleId);
+    console.log("🔍 Bottle ID type:", typeof bottleId);
+    console.log("🔍 Bottle ID length:", bottleId?.length);
+
+    if (!bottleId || bottleId === "") {
+      console.warn("⚠️ No bottle_id found in prompt metadata");
+
+      // For non-encrypted prompts, record purchase and show the system prompt directly
+      setPurchaseLoading(true);
+      try {
+        // Import purchase service
+        const { purchaseService } = await import("@/services/purchase.service");
+        
+        // Record the purchase
+        await purchaseService.createPurchase({
+          user_id: walletAddress,
+          content_id: prompt.id,
+        });
+        
+        console.log("✅ Purchase recorded for non-encrypted prompt");
+        
+        setPurchased(true);
+        setSystemPrompt(prompt.systemPrompt || "No system prompt available.");
+
+        toast({
+          title: "Purchase Successful!",
+          description: "This prompt is not encrypted. You now have full access.",
+        });
+      } catch (error: any) {
+        console.error("Error recording purchase:", error);
+        toast({
+          title: "Purchase recorded but error saving",
+          description: "You still have access to the prompt.",
+          variant: "destructive",
+        });
+        setPurchased(true);
+        setSystemPrompt(prompt.systemPrompt || "No system prompt available.");
+      } finally {
+        setPurchaseLoading(false);
+      }
+      return;
+    }
+
+    console.log("🔐 Bottle ID found:", bottleId);
+    
+    // Validate bottle ID format (should be a Sui object ID)
+    if (!bottleId.startsWith("0x")) {
+      console.error("❌ Invalid bottle ID format:", bottleId);
+      toast({
+        title: "Invalid Bottle ID",
+        description: `The bottle ID format is invalid: ${bottleId}. It should start with '0x'.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPurchaseLoading(true);
+    setIsDecrypting(true);
+
+    try {
+      // Step 1: Add buyer as recipient to the bottle
+      toast({
+        title: "Processing Purchase",
+        description: "Granting you access to the encrypted prompt...",
+      });
+
+      const { BackendSealService } = await import("@/services/seal.service");
+      const backendService = new BackendSealService(getFullnodeUrl("testnet"));
+
+      console.log("💰 Adding buyer as recipient:", walletAddress);
+      console.log("🔐 Bottle ID:", bottleId);
+      console.log("🔐 Bottle ID is valid format: starts with 0x");
+      
+      try {
+        await backendService.addRecipientToBottle(bottleId, walletAddress);
+        console.log("✅ Recipient added successfully");
+      } catch (sealError: any) {
+        console.error("❌ SEAL error:", sealError);
+        
+        // Check if it's a bottle not found error
+        if (sealError.message?.includes("not found") || sealError.message?.includes("Bottle not found")) {
+          throw new Error(
+            `The encrypted bottle (${bottleId.slice(0, 8)}...) could not be found on the blockchain. ` +
+            `This might mean the encryption failed or the bottle ID is invalid. ` +
+            `Please contact the prompt creator.`
+          );
+        }
+        
+        // Re-throw other errors
+        throw sealError;
+      }
 
       toast({
-        title: "Purchase successful!",
-        description: "You now have full access to this prompt.",
+        title: "Access Granted! 🎉",
+        description: "Recording your purchase...",
       });
-    }, 1500);
+
+      // Step 2: Record the purchase in the backend
+      const { purchaseService } = await import("@/services/purchase.service");
+      
+      await purchaseService.createPurchase({
+        user_id: walletAddress,
+        content_id: prompt.id,
+      });
+      
+      console.log("✅ Purchase recorded in backend");
+
+      // Mark as purchased
+      setPurchased(true);
+      setDecryptedPrompt(bottleId);
+
+      toast({
+        title: "Purchase Complete! 🎉",
+        description: "You now have access to this encrypted prompt.",
+      });
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Failed to complete purchase. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchaseLoading(false);
+      setIsDecrypting(false);
+    }
+  };
+
+  const handleBuyAndDecrypt = async () => {
+    if (!isWalletConnected || !walletAddress) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your SUI wallet first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const bottleId = prompt?.metadata?.bottle_id;
+    
+    console.log("🔍 Bottle ID from metadata:", bottleId);
+    console.log("🔍 Prompt metadata:", prompt?.metadata);
+    
+    if (!bottleId || bottleId === "") {
+      toast({
+        title: "Error",
+        description: "This prompt is not encrypted.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPurchaseLoading(true);
+
+    try {
+      toast({
+        title: "Processing Purchase",
+        description: "Adding you as recipient to the encrypted bottle...",
+      });
+
+      const { BackendSealService } = await import("@/services/seal.service");
+      const backendService = new BackendSealService(getFullnodeUrl("testnet"));
+
+      console.log("💰 Adding recipient to bottle:", bottleId, "for address:", walletAddress);
+      
+      // Add buyer as recipient to the bottle
+      await backendService.addRecipientToBottle(bottleId, walletAddress);
+      
+      console.log("✅ Recipient added successfully");
+
+      // Record the purchase in the backend
+      const { purchaseService } = await import("@/services/purchase.service");
+      
+      await purchaseService.createPurchase({
+        user_id: walletAddress,
+        content_id: prompt.id,
+      });
+      
+      console.log("✅ Purchase recorded in backend");
+
+      // Mark as purchased
+      setPurchased(true);
+
+      toast({
+        title: "Access Granted! 🎉",
+        description: "Now enter your private key to decrypt the prompt...",
+      });
+
+      // Open decrypt dialog
+      setShowDecryptDialog(true);
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Failed to complete purchase. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchaseLoading(false);
+    }
   };
 
   const renderStars = (rating: number) => {
@@ -1028,6 +1431,12 @@ const PromptDetail = () => {
                   <CardDescription className="text-muted-foreground">
                     One-time purchase, lifetime access
                   </CardDescription>
+                  {prompt?.metadata?.bottle_id && (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-500/10 border border-green-500/30 rounded-md px-3 py-2">
+                      <Lock className="h-3 w-3" />
+                      <span>Encrypted with SEAL</span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {purchased ? (
@@ -1046,40 +1455,27 @@ const PromptDetail = () => {
                     <>
                       {isWalletConnected ? (
                         <Button
-                          onClick={handlePurchase}
+                          onClick={handleBuyAndDecrypt}
                           disabled={purchaseLoading}
                           className="w-full bg-neon-purple hover:bg-neon-purple/90 text-white py-6"
                         >
                           {purchaseLoading ? (
                             <>
                               <Loader className="mr-2 h-4 w-4 animate-spin" />
-                              Processing...
+                              Processing Purchase...
                             </>
                           ) : (
                             <>
-                              Buy Now
+                              <Lock className="mr-2 h-4 w-4" />
+                              Buy & Decrypt Prompt
                               <ArrowRight className="ml-2 h-4 w-4" />
                             </>
                           )}
                         </Button>
                       ) : (
-                        <Button
-                          onClick={connectWallet}
-                          disabled={connectingWallet}
-                          className="w-full bg-gradient-to-r from-neon-purple via-neon-blue to-neon-pink hover:from-neon-purple/90 hover:via-neon-blue/90 hover:to-neon-pink/90 px-8 py-6 text-md text-white font-light group transition-all duration-300"
-                        >
-                          {connectingWallet ? (
-                            <>
-                              <Loader className="mr-2 h-4 w-4 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <Wallet className="mr-2 h-4 w-4" />
-                              Connect SUI Wallet
-                            </>
-                          )}
-                        </Button>
+                        <div className="w-full">
+                          <ConnectButton className="w-full" />
+                        </div>
                       )}
                     </>
                   )}
@@ -1105,29 +1501,141 @@ const PromptDetail = () => {
                     </div>
                   </div>
                 </CardContent>
-                {purchased && (
-                  <CardFooter className="bg-muted/10 border-t border-border flex flex-col items-start">
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <h4 className="font-medium">System Prompt</h4>
+                {/* Show encrypted message if available */}
+                {encryptedMessage && (
+                  <div className="bg-muted/10 border-t border-border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Lock className="h-4 w-4 text-blue-500" />
+                        Encrypted Message (Base64)
+                      </h4>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-8"
-                        onClick={() => handleCopyToClipboard(systemPrompt)}
+                        onClick={() => handleCopyToClipboard(encryptedMessage)}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
                     <div className="bg-background rounded-md border border-border p-3 w-full">
-                      <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-60 font-mono text-muted-foreground">
-                        {systemPrompt}
+                      <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-40 font-mono text-muted-foreground break-all">
+                        {encryptedMessage}
                       </pre>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      This is the encrypted system prompt stored on the blockchain. It will be decrypted when you purchase this prompt.
+                    </p>
+                  </div>
+                )}
+
+                {/* Show encrypted prompt info for everyone */}
+                {prompt?.metadata?.bottle_id && (
+                  <CardFooter className="bg-muted/10 border-t border-border flex flex-col items-start">
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Lock className="h-4 w-4 text-purple-500" />
+                        {purchased ? "System Prompt (Decrypted)" : "Encrypted Prompt"}
+                      </h4>
+                      {purchased && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => handleCopyToClipboard(systemPrompt)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Show bottle ID and decryption info */}
+                    <div className="w-full mb-3 space-y-2">
+                      <div className={`p-3 rounded-md border ${
+                        purchased 
+                          ? "bg-green-500/10 border-green-500/30" 
+                          : "bg-purple-500/10 border-purple-500/30"
+                      }`}>
+                        <p className={`text-xs flex items-center gap-2 mb-2 ${
+                          purchased
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-purple-600 dark:text-purple-400"
+                        }`}>
+                          <Lock className="h-4 w-4" />
+                          Bottle ID: {prompt.metadata.bottle_id.slice(0, 8)}...{prompt.metadata.bottle_id.slice(-6)}
+                        </p>
+                        
+                        {!purchased && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            💡 Purchase this prompt to decrypt it and view the full system prompt.
+                          </p>
+                        )}
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full ${
+                            purchased
+                              ? "border-green-500/50 text-green-600 hover:bg-green-500/10"
+                              : "border-purple-500/50 text-purple-600 hover:bg-purple-500/10"
+                          }`}
+                          onClick={() => navigate('/seal')}
+                        >
+                          <Unlock className="h-3 w-3 mr-2" />
+                          {purchased ? "Decrypt on SEAL Page" : "View on SEAL Page"}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Show system prompt only if purchased */}
+                    {purchased && (
+                      <>
+                        {isDecrypting ? (
+                          <div className="w-full p-4 bg-background rounded-md border border-border flex items-center justify-center">
+                            <Loader className="h-5 w-5 animate-spin mr-2" />
+                            <span className="text-sm text-muted-foreground">Decrypting your prompt...</span>
+                          </div>
+                        ) : (
+                          <div className="bg-background rounded-md border border-border p-3 w-full">
+                            <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-60 font-mono text-muted-foreground">
+                              {systemPrompt}
+                            </pre>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </CardFooter>
                 )}
               </Card>
 
-              {!purchased && (
+              {!purchased && prompt?.metadata?.bottle_id && (
+                <div className="mt-4 bg-purple-500/5 rounded-lg border border-purple-500/20 p-4">
+                  <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-purple-500" />
+                    Why buy this encrypted prompt?
+                  </h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-neon-green mr-2 mt-0.5" />
+                      <span>Securely encrypted on the Sui blockchain</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-neon-green mr-2 mt-0.5" />
+                      <span>Only you can decrypt with your private key</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-neon-green mr-2 mt-0.5" />
+                      <span>Verified ownership and authenticity</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-neon-green mr-2 mt-0.5" />
+                      <span>Lifetime access to your purchased prompt</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+              
+              {!purchased && !prompt?.metadata?.bottle_id && (
                 <div className="mt-4 bg-muted/10 rounded-lg border border-muted p-4">
                   <h4 className="font-medium text-foreground mb-3">
                     Why buy this prompt?
@@ -1155,6 +1663,113 @@ const PromptDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Decryption Dialog */}
+        <Dialog open={showDecryptDialog} onOpenChange={setShowDecryptDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Unlock className="h-5 w-5 text-neon-purple" />
+                Decrypt Your Prompt
+              </DialogTitle>
+              <DialogDescription>
+                Enter your private key to decrypt and view the full system prompt. Your key is processed locally and never sent to any server.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Info Box */}
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3 flex gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <p className="font-medium mb-1">How to export your private key:</p>
+                  <ul className="text-xs space-y-1 list-disc list-inside">
+                    <li><strong>Sui Wallet:</strong> Settings → Export Private Key</li>
+                    <li><strong>Suiet:</strong> Settings → Export Private Key</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Private Key Input */}
+              <div className="space-y-2">
+                <Label htmlFor="privateKey" className="flex items-center gap-2">
+                  Private Key
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Bech32, Hex, or Base64)
+                  </span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="privateKey"
+                    type={showPrivateKey ? "text" : "password"}
+                    placeholder="suiprivkey1... or 0x... or base64"
+                    value={privateKey}
+                    onChange={(e) => setPrivateKey(e.target.value)}
+                    disabled={isDecryptingPrompt}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivateKey(!showPrivateKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    disabled={isDecryptingPrompt}
+                  >
+                    {showPrivateKey ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  ✅ Your private key is processed locally only and never sent to any server.
+                </p>
+              </div>
+
+              {/* Decryption Status */}
+              {isDecryptingPrompt && (
+                <div className="bg-muted/50 rounded-md p-3 flex items-center gap-2">
+                  <Loader className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">
+                    Creating session key and decrypting...
+                  </span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDecryptDialog(false);
+                    setPrivateKey("");
+                  }}
+                  disabled={isDecryptingPrompt}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDecryptPrompt}
+                  disabled={isDecryptingPrompt || !privateKey.trim()}
+                  className="flex-1 bg-neon-purple hover:bg-neon-purple/90"
+                >
+                  {isDecryptingPrompt ? (
+                    <>
+                      <Loader className="h-4 w-4 mr-2 animate-spin" />
+                      Decrypting...
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="h-4 w-4 mr-2" />
+                      Decrypt Prompt
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

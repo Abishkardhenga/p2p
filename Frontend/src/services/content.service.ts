@@ -17,12 +17,14 @@ export interface ContentCreate {
   metadata?: Record<string, any>;
   prompt: string;
   preview_url?: string;
+  encrypted_message?: string;
 }
 
 export interface Content extends ContentCreate {
   id: string;
   created_at?: string;
   updated_at?: string;
+  has_purchased?: boolean;
 }
 
 export interface SearchQuery {
@@ -50,8 +52,9 @@ export const contentService = {
   },
 
   // Get content by ID
-  getContent: async (contentId: string): Promise<Content> => {
-    return apiGet(`/content/${contentId}`);
+  getContent: async (contentId: string, userId?: string): Promise<Content> => {
+    const url = userId ? `/content/${contentId}?user_id=${userId}` : `/content/${contentId}`;
+    return apiGet(url);
   },
 
   // Get content by owner
